@@ -137,8 +137,8 @@ dependencies {
   androidTestImplementation(libs.androidx.runner)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)
-  kapt(libs.androidx.room.compiler)
-  kapt(libs.moshi.kotlin.codegen)
+  add("kapt", libs.androidx.room.compiler)
+  add("kapt", libs.moshi.kotlin.codegen)
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
