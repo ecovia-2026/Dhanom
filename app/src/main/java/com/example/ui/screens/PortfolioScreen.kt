@@ -23,6 +23,7 @@ import com.example.domain.analytics.AssetClassAllocation
 import com.example.domain.analytics.PortfolioSummary
 import com.example.ui.theme.*
 import java.util.Locale
+import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -423,6 +424,6 @@ private fun getAssetClassIcon(assetClass: AssetClass) = when (assetClass) {
     AssetClass.INTERNATIONAL -> Icons.Default.Public
     AssetClass.CRYPTO -> Icons.Default.CurrencyBitcoin
     AssetClass.REIT -> Icons.Default.Apartment
-    AssetClass.PPF_EPF -> Icons.Default.Retirement
+    AssetClass.PPF_EPF -> Icons.Default.Savings
     AssetClass.BONDS -> Icons.Default.Receipt
 }
