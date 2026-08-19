@@ -3,12 +3,14 @@ import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesS
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
-  // kotlin.android removed to avoid duplicate plugin registration; kotlin.compose provides Kotlin Android
-  alias(libs.plugins.kotlin.kapt)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
   alias(libs.plugins.google.services)
 }
+
+// Apply kapt without requesting a version to avoid plugin-classpath version conflicts in CI
+apply(plugin = "kotlin-kapt")
+
 
 
 android {
@@ -17,7 +19,7 @@ android {
 
   defaultConfig {
     applicationId = "com.aistudio.dhanom.finance"
-    minSdk = 16
+    minSdk = 21
     targetSdk = 36
     versionCode = 1
     versionName = "1.0"
