@@ -8,7 +8,7 @@ plugins {
   alias(libs.plugins.google.services)
 }
 
-apply(plugin = "org.jetbrains.kotlin.kapt")
+apply(plugin = "kotlin-kapt")
 
 android {
   namespace = "com.example"
