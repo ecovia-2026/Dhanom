@@ -55,6 +55,26 @@ class FinanceTypeConverters {
     } catch (e: Exception) {
         MessageSender.SYSTEM
     }
+
+    @TypeConverter
+    fun fromAssetClass(assetClass: AssetClass): String = assetClass.name
+
+    @TypeConverter
+    fun toAssetClass(value: String): AssetClass = try {
+        AssetClass.valueOf(value)
+    } catch (e: Exception) {
+        AssetClass.MUTUAL_FUND
+    }
+
+    @TypeConverter
+    fun fromInvestmentRegion(region: InvestmentRegion): String = region.name
+
+    @TypeConverter
+    fun toInvestmentRegion(value: String): InvestmentRegion = try {
+        InvestmentRegion.valueOf(value)
+    } catch (e: Exception) {
+        InvestmentRegion.INDIA
+    }
 }
 
 @Database(
@@ -63,9 +83,10 @@ class FinanceTypeConverters {
         BudgetEntity::class,
         GoalEntity::class,
         BrainMemoryEntity::class,
-        ChatMessageEntity::class
+        ChatMessageEntity::class,
+        PortfolioHoldingEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(FinanceTypeConverters::class)
@@ -75,6 +96,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun brainMemoryDao(): BrainMemoryDao
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun portfolioDao(): PortfolioDao
 
     companion object {
         @Volatile

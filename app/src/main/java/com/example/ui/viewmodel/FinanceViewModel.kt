@@ -1,11 +1,15 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.db.AppDatabase
+import com.example.data.export.ExportManager
 import com.example.data.model.*
 import com.example.data.repository.FinanceRepository
+import com.example.domain.ai.DailySuggestion
+import com.example.domain.ai.DailySuggestionEngine
 import com.example.domain.ai.DhanomAiService
 import com.example.domain.analytics.*
 import com.example.domain.ml.PersonalFinanceMlEngine
@@ -19,8 +23,10 @@ enum class FinanceTab(val title: String) {
     DASHBOARD("Dashboard"),
     FLOW_ANALYTICS("Flow & Charts"),
     LEDGER("Ledger Table"),
+    PORTFOLIO("Portfolio"),
     DHANOM_AI("Dhanom AI"),
-    BUDGETS_GOALS("Budgets & Goals")
+    BUDGETS_GOALS("Budgets & Goals"),
+    REPORTS("Reports & Export")
 }
 
 enum class LedgerSort {
@@ -44,6 +50,9 @@ data class FinanceUiState(
     val showAddBudgetDialog: Boolean = false,
     val showAddGoalDialog: Boolean = false,
     val showDepositDialog: GoalEntity? = null,
+    val showAddHoldingDialog: Boolean = false,
+    val editingHolding: PortfolioHoldingEntity? = null,
+    val showImportBackupDialog: Boolean = false,
     val statusSnackbarMessage: String? = null
 )
 
@@ -59,10 +68,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             budgetDao = db.budgetDao(),
             goalDao = db.goalDao(),
             brainMemoryDao = db.brainMemoryDao(),
-            chatMessageDao = db.chatMessageDao()
+            chatMessageDao = db.chatMessageDao(),
+            portfolioDao = db.portfolioDao()
         )
 
-        // Seed initial rich data on first launch
         viewModelScope.launch {
             repository.checkAndSeedInitialData()
         }
@@ -86,7 +95,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     val chatMessages: StateFlow<List<ChatMessageEntity>> = repository.chatMessages
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Derived Financial Analytics
+    val holdings: StateFlow<List<PortfolioHoldingEntity>> = repository.allHoldings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val cashFlowSummary: StateFlow<CashFlowSummary> = transactions
         .map { FinancialAnalyticsEngine.calculateCashFlowSummary(it) }
         .stateIn(
@@ -115,7 +126,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         .map { FinancialAnalyticsEngine.calculateDailyTrends(it, 10) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // On-Device Machine Learning Insights & Predictions
     val personalizedInsights: StateFlow<List<PersonalizedFinancialInsight>> = combine(
         transactions,
         budgets,
@@ -125,7 +135,28 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         PersonalFinanceMlEngine.generatePersonalizedInsights(txList, bList, gList, summary)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Filtered & Sorted Ledger Transactions
+    val portfolioSummary: StateFlow<PortfolioSummary> = holdings
+        .map { PortfolioAnalyticsEngine.calculatePortfolioSummary(it) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            PortfolioAnalyticsEngine.calculatePortfolioSummary(emptyList())
+        )
+
+    val assetAllocations: StateFlow<List<AssetClassAllocation>> = holdings
+        .map { PortfolioAnalyticsEngine.calculateAssetClassAllocations(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val dailySuggestions: StateFlow<List<DailySuggestion>> = combine(
+        transactions,
+        budgets,
+        goals,
+        holdings,
+        cashFlowSummary
+    ) { txList, bList, gList, hList, summary ->
+        DailySuggestionEngine.generateDailySuggestions(txList, bList, gList, hList, summary)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val filteredLedgerTransactions: StateFlow<List<TransactionEntity>> = combine(
         transactions,
         _uiState
@@ -324,7 +355,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     isCompleted = isComplete
                 )
             )
-            // Also log savings transfer transaction
             repository.insertTransaction(
                 TransactionEntity(
                     title = "Deposit towards ${goal.title}",
@@ -337,7 +367,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 )
             )
             closeDepositDialog()
-            showSnackbar("Deposited $${String.format(java.util.Locale.US, "%.2f", depositAmount)} towards ${goal.title}!")
+            showSnackbar("Deposited ₹${String.format(java.util.Locale.US, "%.2f", depositAmount)} towards ${goal.title}!")
         }
     }
 
@@ -348,12 +378,85 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun openAddHoldingDialog(existing: PortfolioHoldingEntity? = null) {
+        _uiState.update { it.copy(showAddHoldingDialog = true, editingHolding = existing) }
+    }
+
+    fun closeAddHoldingDialog() {
+        _uiState.update { it.copy(showAddHoldingDialog = false, editingHolding = null) }
+    }
+
+    fun saveHolding(holding: PortfolioHoldingEntity) {
+        viewModelScope.launch {
+            val existing = _uiState.value.editingHolding
+            if (existing != null) {
+                repository.updateHolding(holding)
+                showSnackbar("Holding updated")
+            } else {
+                repository.insertHolding(holding)
+                showSnackbar("Holding added to portfolio")
+            }
+            closeAddHoldingDialog()
+        }
+    }
+
+    fun deleteHolding(holding: PortfolioHoldingEntity) {
+        viewModelScope.launch {
+            repository.deleteHolding(holding)
+            showSnackbar("Holding removed")
+        }
+    }
+
+    fun updateHoldingPrices() {
+        viewModelScope.launch {
+            // In a real app, this would fetch live prices. For offline-first, we keep manual entry.
+            showSnackbar("Edit any holding to update its current price")
+        }
+    }
+
+    fun exportAndShareBackup() {
+        viewModelScope.launch {
+            val bundle = com.example.data.export.BackupBundle(
+                transactions = transactions.value,
+                budgets = budgets.value,
+                goals = goals.value,
+                memories = brainMemories.value,
+                chatMessages = chatMessages.value,
+                holdings = holdings.value
+            )
+            val context = getApplication<Application>()
+            val file = ExportManager.exportBackupJson(context, bundle)
+            val intent = ExportManager.createShareIntent(context, file, "application/json")
+            val chooser = ExportManager.createShareChooser(intent).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+            showSnackbar("Backup ready to share via QuickShare/Nearby Share")
+        }
+    }
+
+    fun importBackupFromJson(json: String) {
+        viewModelScope.launch {
+            try {
+                val bundle = ExportManager.parseBackupJson(json)
+                bundle.transactions.forEach { repository.insertTransaction(it) }
+                bundle.budgets.forEach { repository.insertBudget(it) }
+                bundle.goals.forEach { repository.insertGoal(it) }
+                bundle.memories.forEach { repository.insertMemory(it) }
+                bundle.chatMessages.forEach { repository.insertChatMessage(it) }
+                bundle.holdings.forEach { repository.insertHolding(it) }
+                showSnackbar("Backup imported successfully! ${bundle.transactions.size} transactions restored.")
+            } catch (e: Exception) {
+                showSnackbar("Import failed: ${e.message}")
+            }
+        }
+    }
+
     fun sendChatMessage(text: String) {
         if (text.isBlank()) return
         val userText = text.trim()
 
         viewModelScope.launch {
-            // Save user message
             repository.insertChatMessage(
                 ChatMessageEntity(
                     sender = MessageSender.USER,
@@ -364,7 +467,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
             _uiState.update { it.copy(isChatLoading = true) }
 
-            // Process via Dhanom AI Service
             val aiResponse = aiService.processUserMessage(
                 userMessage = userText,
                 currentTransactions = transactions.value,
@@ -374,7 +476,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 enableInternetKnowledge = _uiState.value.enableInternetKnowledge
             )
 
-            // If command produced side effects, execute them
             when (val cmd = aiResponse.parsedCommand) {
                 is ParsedFinanceCommand.AddTransactionCommand -> {
                     repository.insertTransaction(cmd.transaction)
@@ -405,7 +506,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 else -> {}
             }
 
-            // Save AI reply message
             repository.insertChatMessage(
                 ChatMessageEntity(
                     sender = MessageSender.DHANOM_AI,
@@ -431,13 +531,11 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             val txList = transactions.value
             val summary = cashFlowSummary.value
 
-            // Combine rule-based detections + ML patterns
             val detected = FinancialAnalyticsEngine.detectHabitsAndAnomalies(txList)
             detected.forEach {
                 repository.insertMemory(it)
             }
 
-            // ML Forecast Memory
             val forecast = PersonalFinanceMlEngine.forecastMonthEndCashFlow(txList)
             repository.insertMemory(
                 BrainMemoryEntity(
@@ -445,18 +543,17 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     topic = "End-of-Month Run Rate Forecast",
                     description = forecast.forecastSummary,
                     confidenceScore = 0.94f,
-                    actionSuggestion = "Burn rate: $${String.format(java.util.Locale.US, "%.0f", forecast.dailyBurnRate)}/day; Projected Net: $${String.format(java.util.Locale.US, "%,.0f", forecast.projectedMonthEndNetSavings)}."
+                    actionSuggestion = "Burn rate: ₹${String.format(java.util.Locale.US, "%.0f", forecast.dailyBurnRate)}/day; Projected Net: ₹${String.format(java.util.Locale.US, "%,.0f", forecast.projectedMonthEndNetSavings)}."
                 )
             )
 
-            // ML Subscriptions
             val recurring = PersonalFinanceMlEngine.detectRecurringPatterns(txList)
             recurring.filter { it.isSubscription }.forEach { sub ->
                 repository.insertMemory(
                     BrainMemoryEntity(
                         memoryType = MemoryType.MERCHANT_PATTERN,
                         topic = "Subscription: ${sub.merchantOrTitle}",
-                        description = "Recurring payment of ~$${String.format(java.util.Locale.US, "%.2f", sub.averageAmount)} every ${sub.intervalDays.toInt()} days (Annual: ~$${String.format(java.util.Locale.US, "%,.0f", sub.projectedAnnualCost)}).",
+                        description = "Recurring payment of ~₹${String.format(java.util.Locale.US, "%.2f", sub.averageAmount)} every ${sub.intervalDays.toInt()} days (Annual: ~₹${String.format(java.util.Locale.US, "%,.0f", sub.projectedAnnualCost)}).",
                         confidenceScore = 0.95f,
                         actionSuggestion = "Monitor active utility and cancel if unutilized."
                     )
@@ -475,6 +572,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     fun resetToSampleData() {
         viewModelScope.launch {
             repository.clearTransactions()
+            repository.clearHoldings()
             repository.checkAndSeedInitialData()
             showSnackbar("Reset to rich sample portfolio")
         }

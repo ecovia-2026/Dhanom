@@ -3,10 +3,24 @@ package com.example.data.model
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+enum class Currency(val code: String, val symbol: String, val label: String) {
+    INR("INR", "₹", "Indian Rupee"),
+    USD("USD", "$", "US Dollar"),
+    EUR("EUR", "€", "Euro"),
+    GBP("GBP", "£", "British Pound"),
+    AED("AED", "د.إ", "UAE Dirham");
+
+    companion object {
+        fun fromCode(code: String?): Currency = entries.firstOrNull { it.code.equals(code, ignoreCase = true) } ?: INR
+    }
+}
+
 enum class TransactionType {
     EXPENSE,
     INCOME,
-    TRANSFER
+    TRANSFER,
+    INVESTMENT_BUY,
+    INVESTMENT_SELL
 }
 
 enum class ExpenseNecessity {
@@ -31,12 +45,19 @@ enum class TransactionCategory(val displayName: String, val defaultNecessity: Ex
     SALARY("Salary & Wages", ExpenseNecessity.NEED),
     FREELANCE("Freelance & Business", ExpenseNecessity.NEED),
     INVESTMENT_RETURN("Dividends & Returns", ExpenseNecessity.NEED),
+    INSURANCE("Insurance Premium", ExpenseNecessity.NEED),
+    TAX("Tax & TDS", ExpenseNecessity.NEED),
+    MUTUAL_FUND("Mutual Fund & SIP", ExpenseNecessity.SAVINGS),
+    GOLD("Gold & Commodities", ExpenseNecessity.SAVINGS),
+    CRYPTO("Crypto Assets", ExpenseNecessity.SAVINGS),
+    GIFTS_DONATIONS("Gifts & Donations", ExpenseNecessity.WANT),
+    SUBSCRIPTIONS("Subscriptions", ExpenseNecessity.WANT),
     OTHER("Other", ExpenseNecessity.WANT);
 
     companion object {
         fun fromString(value: String): TransactionCategory {
-            return entries.firstOrNull { 
-                it.name.equals(value, ignoreCase = true) || it.displayName.equals(value, ignoreCase = true) 
+            return entries.firstOrNull {
+                it.name.equals(value, ignoreCase = true) || it.displayName.equals(value, ignoreCase = true)
             } ?: OTHER
         }
     }
@@ -55,7 +76,8 @@ data class TransactionEntity(
     val timestamp: Long = System.currentTimeMillis(),
     val notes: String = "",
     val tags: String = "",
-    val isRecurring: Boolean = false
+    val isRecurring: Boolean = false,
+    val currency: String = Currency.INR.code
 )
 
 @Entity(tableName = "budgets")
@@ -84,7 +106,9 @@ enum class MemoryType {
     MERCHANT_PATTERN,
     SPENDING_SURGE,
     SAVINGS_VELOCITY,
-    RECOMMENDATION_ACTIVE
+    RECOMMENDATION_ACTIVE,
+    MARKET_CONTEXT,
+    GOAL_STRATEGY
 }
 
 @Entity(tableName = "brain_memories")
@@ -114,3 +138,46 @@ data class ChatMessageEntity(
     val actionType: String? = null, // e.g. "LOG_EXPENSE", "FLOWCHART_SHOWN", "BUDGET_ALERT"
     val actionPayload: String? = null
 )
+
+// Investment portfolio holdings
+enum class AssetClass(val displayName: String) {
+    LARGE_CAP("Large Cap Equity"),
+    MID_SMALL_CAP("Mid & Small Cap"),
+    INDEX_ETF("Index ETF"),
+    MUTUAL_FUND("Mutual Fund / SIP"),
+    DEBT_FD("Debt / Fixed Deposit"),
+    GOLD("Gold / Sovereign Gold Bond"),
+    INTERNATIONAL("International Equity"),
+    CRYPTO("Cryptocurrency"),
+    REIT("REIT / Real Estate"),
+    PPF_EPF("PPF / EPF / NPS"),
+    BONDS("Bonds")
+}
+
+enum class InvestmentRegion(val displayName: String) {
+    INDIA("India"),
+    US("United States"),
+    GLOBAL("Global / International")
+}
+
+@Entity(tableName = "portfolio_holdings")
+data class PortfolioHoldingEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val instrumentName: String,
+    val symbol: String = "",
+    val assetClass: AssetClass,
+    val region: InvestmentRegion = InvestmentRegion.INDIA,
+    val quantity: Double = 0.0,
+    val avgBuyPrice: Double = 0.0,
+    val currentPrice: Double = 0.0,
+    val investedAmount: Double = 0.0,
+    val currentValue: Double = 0.0,
+    val currency: String = Currency.INR.code,
+    val purchaseDate: Long = System.currentTimeMillis(),
+    val notes: String = "",
+    val isSip: Boolean = false,
+    val sipMonthlyAmount: Double = 0.0
+) {
+    val unrealizedPnl: Double get() = currentValue - investedAmount
+    val unrealizedPnlPercent: Double get() = if (investedAmount > 0) (unrealizedPnl / investedAmount) * 100.0 else 0.0
+}

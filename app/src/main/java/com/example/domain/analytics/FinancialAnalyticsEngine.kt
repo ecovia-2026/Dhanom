@@ -98,6 +98,13 @@ object FinancialAnalyticsEngine {
         TransactionCategory.SALARY to Color(0xFF22C55E), // Green
         TransactionCategory.FREELANCE to Color(0xFF84CC16), // Lime
         TransactionCategory.INVESTMENT_RETURN to Color(0xFF10B981),
+        TransactionCategory.INSURANCE to Color(0xFF6366F1), // Indigo
+        TransactionCategory.TAX to Color(0xFFEF4444), // Red
+        TransactionCategory.MUTUAL_FUND to Color(0xFF10B981), // Emerald
+        TransactionCategory.GOLD to Color(0xFFEAB308), // Yellow
+        TransactionCategory.CRYPTO to Color(0xFFF97316), // Orange
+        TransactionCategory.GIFTS_DONATIONS to Color(0xFFEC4899), // Pink
+        TransactionCategory.SUBSCRIPTIONS to Color(0xFF8B5CF6), // Violet
         TransactionCategory.OTHER to Color(0xFF94A3B8) // Slate
     )
 
@@ -121,8 +128,8 @@ object FinancialAnalyticsEngine {
 
         for (tx in monthTransactions) {
             when (tx.type) {
-                TransactionType.INCOME -> totalInflow += tx.amount
-                TransactionType.EXPENSE, TransactionType.TRANSFER -> {
+                TransactionType.INCOME, TransactionType.INVESTMENT_SELL -> totalInflow += tx.amount
+                TransactionType.EXPENSE, TransactionType.TRANSFER, TransactionType.INVESTMENT_BUY -> {
                     totalOutflow += tx.amount
                     when (tx.necessity) {
                         ExpenseNecessity.NEED -> needsTotal += tx.amount

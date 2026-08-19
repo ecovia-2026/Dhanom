@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.TransactionEntity
 import com.example.data.model.TransactionType
+import com.example.domain.ai.DailySuggestion
 import com.example.domain.analytics.CashFlowSummary
 import com.example.domain.analytics.CashFlowchartData
 import com.example.domain.analytics.CategoryExpense
@@ -43,6 +44,7 @@ fun DashboardScreen(
     flowchartData: CashFlowchartData,
     categoryExpenses: List<CategoryExpense>,
     recentTransactions: List<TransactionEntity>,
+    dailySuggestions: List<DailySuggestion> = emptyList(),
     onNavigateTab: (FinanceTab) -> Unit,
     onAddTransactionClick: () -> Unit,
     onTransactionClick: (TransactionEntity) -> Unit,
@@ -68,6 +70,13 @@ fun DashboardScreen(
                 onExploreAi = { onNavigateTab(FinanceTab.DHANOM_AI) },
                 onAddTx = onAddTransactionClick
             )
+        }
+
+        // Bento Item 2b: Daily Financial Suggestions
+        if (dailySuggestions.isNotEmpty()) {
+            item {
+                DailySuggestionsCard(suggestions = dailySuggestions.take(3))
+            }
         }
 
         // Bento Item 3: Asymmetric 2-Column Row (Net Balance & Security Score)
@@ -749,6 +758,83 @@ fun BentoTransactionRowItem(
                     style = MaterialTheme.typography.labelSmall,
                     color = BentoSecondaryText
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun DailySuggestionsCard(suggestions: List<DailySuggestion>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().testTag("daily_suggestions_card"),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, BentoBorder)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Today's Financial Suggestions",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = BentoDeepPurple
+                )
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (suggestions.any { it.priority == "HIGH" }) Color(0xFFFFEBEE) else BentoLavenderContainer
+                ) {
+                    Text(
+                        text = "${suggestions.size} tips",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (suggestions.any { it.priority == "HIGH" }) BentoExpenseRed else BentoDeepPurple,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        fontSize = 10.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            suggestions.forEach { suggestion ->
+                val priorityColor = when (suggestion.priority) {
+                    "HIGH" -> BentoExpenseRed
+                    "MEDIUM" -> Color(0xFFF59E0B)
+                    else -> BentoPrimaryPurple
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(priorityColor)
+                            .padding(top = 2.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = suggestion.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = BentoOnBackgroundLight
+                        )
+                        Text(
+                            text = suggestion.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = BentoSecondaryText,
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
             }
         }
     }

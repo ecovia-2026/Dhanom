@@ -5,11 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
@@ -17,16 +14,13 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.data.model.*
+import com.example.data.model.PortfolioHoldingEntity
 import com.example.ui.components.*
 import com.example.ui.screens.*
 import com.example.ui.theme.*
@@ -37,7 +31,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Force a fresh layout cycle for the emulator preview
         android.util.Log.d("DhanomApp", "MainActivity onCreate initializing")
         enableEdgeToEdge()
         setContent {
@@ -59,12 +52,17 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
     val brainMemories by viewModel.brainMemories.collectAsStateWithLifecycle()
     val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle()
     val personalizedInsights by viewModel.personalizedInsights.collectAsStateWithLifecycle()
+    val dailySuggestions by viewModel.dailySuggestions.collectAsStateWithLifecycle()
 
     val cashFlowSummary by viewModel.cashFlowSummary.collectAsStateWithLifecycle()
     val categoryExpenses by viewModel.categoryBreakdown.collectAsStateWithLifecycle()
     val budgetProgressList by viewModel.budgetProgressList.collectAsStateWithLifecycle()
     val flowchartData by viewModel.flowchartData.collectAsStateWithLifecycle()
     val dailyTrends by viewModel.dailyTrends.collectAsStateWithLifecycle()
+
+    val holdings by viewModel.holdings.collectAsStateWithLifecycle()
+    val portfolioSummary by viewModel.portfolioSummary.collectAsStateWithLifecycle()
+    val assetAllocations by viewModel.assetAllocations.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -89,8 +87,10 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
                             FinanceTab.DASHBOARD -> "Dhanom AI"
                             FinanceTab.FLOW_ANALYTICS -> "Flow & Trends"
                             FinanceTab.LEDGER -> "Transaction Ledger"
+                            FinanceTab.PORTFOLIO -> "Portfolio & Investments"
                             FinanceTab.DHANOM_AI -> "Dhanom Chat"
                             FinanceTab.BUDGETS_GOALS -> "Budgets & Goals"
+                            FinanceTab.REPORTS -> "Reports & Export"
                         },
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleLarge,
@@ -135,13 +135,7 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
                         )
                     },
                     label = { Text("Overview", fontWeight = if (uiState.currentTab == FinanceTab.DASHBOARD) FontWeight.Bold else FontWeight.Normal) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = BentoDeepPurple,
-                        selectedTextColor = BentoDeepPurple,
-                        indicatorColor = BentoLavenderContainer,
-                        unselectedIconColor = BentoSecondaryText,
-                        unselectedTextColor = BentoSecondaryText
-                    ),
+                    colors = navColors(),
                     modifier = Modifier.testTag("nav_dashboard")
                 )
 
@@ -155,13 +149,7 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
                         )
                     },
                     label = { Text("Trends", fontWeight = if (uiState.currentTab == FinanceTab.FLOW_ANALYTICS) FontWeight.Bold else FontWeight.Normal) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = BentoDeepPurple,
-                        selectedTextColor = BentoDeepPurple,
-                        indicatorColor = BentoLavenderContainer,
-                        unselectedIconColor = BentoSecondaryText,
-                        unselectedTextColor = BentoSecondaryText
-                    ),
+                    colors = navColors(),
                     modifier = Modifier.testTag("nav_flowchart")
                 )
 
@@ -175,14 +163,22 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
                         )
                     },
                     label = { Text("Ledger", fontWeight = if (uiState.currentTab == FinanceTab.LEDGER) FontWeight.Bold else FontWeight.Normal) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = BentoDeepPurple,
-                        selectedTextColor = BentoDeepPurple,
-                        indicatorColor = BentoLavenderContainer,
-                        unselectedIconColor = BentoSecondaryText,
-                        unselectedTextColor = BentoSecondaryText
-                    ),
+                    colors = navColors(),
                     modifier = Modifier.testTag("nav_ledger")
+                )
+
+                NavigationBarItem(
+                    selected = uiState.currentTab == FinanceTab.PORTFOLIO,
+                    onClick = { viewModel.selectTab(FinanceTab.PORTFOLIO) },
+                    icon = {
+                        Icon(
+                            imageVector = if (uiState.currentTab == FinanceTab.PORTFOLIO) Icons.Filled.ShowChart else Icons.Outlined.ShowChart,
+                            contentDescription = "Portfolio"
+                        )
+                    },
+                    label = { Text("Portfolio", fontWeight = if (uiState.currentTab == FinanceTab.PORTFOLIO) FontWeight.Bold else FontWeight.Normal) },
+                    colors = navColors(),
+                    modifier = Modifier.testTag("nav_portfolio")
                 )
 
                 NavigationBarItem(
@@ -195,13 +191,7 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
                         )
                     },
                     label = { Text("Chat", fontWeight = if (uiState.currentTab == FinanceTab.DHANOM_AI) FontWeight.Bold else FontWeight.Normal) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = BentoDeepPurple,
-                        selectedTextColor = BentoDeepPurple,
-                        indicatorColor = BentoLavenderContainer,
-                        unselectedIconColor = BentoSecondaryText,
-                        unselectedTextColor = BentoSecondaryText
-                    ),
+                    colors = navColors(),
                     modifier = Modifier.testTag("nav_ai")
                 )
 
@@ -215,14 +205,22 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
                         )
                     },
                     label = { Text("Goals", fontWeight = if (uiState.currentTab == FinanceTab.BUDGETS_GOALS) FontWeight.Bold else FontWeight.Normal) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = BentoDeepPurple,
-                        selectedTextColor = BentoDeepPurple,
-                        indicatorColor = BentoLavenderContainer,
-                        unselectedIconColor = BentoSecondaryText,
-                        unselectedTextColor = BentoSecondaryText
-                    ),
+                    colors = navColors(),
                     modifier = Modifier.testTag("nav_goals")
+                )
+
+                NavigationBarItem(
+                    selected = uiState.currentTab == FinanceTab.REPORTS,
+                    onClick = { viewModel.selectTab(FinanceTab.REPORTS) },
+                    icon = {
+                        Icon(
+                            imageVector = if (uiState.currentTab == FinanceTab.REPORTS) Icons.Filled.Assessment else Icons.Outlined.Assessment,
+                            contentDescription = "Reports"
+                        )
+                    },
+                    label = { Text("Reports", fontWeight = if (uiState.currentTab == FinanceTab.REPORTS) FontWeight.Bold else FontWeight.Normal) },
+                    colors = navColors(),
+                    modifier = Modifier.testTag("nav_reports")
                 )
             }
         }
@@ -239,6 +237,7 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
                         flowchartData = flowchartData,
                         categoryExpenses = categoryExpenses,
                         recentTransactions = transactions,
+                        dailySuggestions = dailySuggestions,
                         onNavigateTab = { viewModel.selectTab(it) },
                         onAddTransactionClick = { viewModel.openAddTransactionDialog() },
                         onTransactionClick = { viewModel.openAddTransactionDialog(it) }
@@ -271,6 +270,18 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
                     )
                 }
 
+                FinanceTab.PORTFOLIO -> {
+                    PortfolioScreen(
+                        holdings = holdings,
+                        portfolioSummary = portfolioSummary,
+                        assetAllocations = assetAllocations,
+                        onAddHoldingClick = { viewModel.openAddHoldingDialog() },
+                        onEditHolding = { viewModel.openAddHoldingDialog(it) },
+                        onDeleteHolding = { viewModel.deleteHolding(it) },
+                        onUpdatePrices = { viewModel.updateHoldingPrices() }
+                    )
+                }
+
                 FinanceTab.DHANOM_AI -> {
                     DhanomChatScreen(
                         messages = chatMessages,
@@ -296,6 +307,20 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
                         onDepositGoalClick = { viewModel.openDepositDialog(it) },
                         onDeleteBudget = { viewModel.deleteBudget(it) },
                         onDeleteGoal = { viewModel.deleteGoal(it) }
+                    )
+                }
+
+                FinanceTab.REPORTS -> {
+                    ReportsExportScreen(
+                        transactions = transactions,
+                        holdings = holdings,
+                        budgets = budgets,
+                        goals = goals,
+                        memories = brainMemories,
+                        chatMessages = chatMessages,
+                        cashFlowSummary = cashFlowSummary,
+                        onExportBackup = { viewModel.exportAndShareBackup() },
+                        onImportBackup = { viewModel.importBackupFromJson(it) }
                     )
                 }
             }
@@ -340,4 +365,23 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
             }
         )
     }
+
+    if (uiState.showAddHoldingDialog) {
+        AddEditHoldingDialog(
+            existing = uiState.editingHolding,
+            onDismiss = { viewModel.closeAddHoldingDialog() },
+            onSave = { holding ->
+                viewModel.saveHolding(holding)
+            }
+        )
+    }
 }
+
+@Composable
+private fun navColors() = NavigationBarItemDefaults.colors(
+    selectedIconColor = BentoDeepPurple,
+    selectedTextColor = BentoDeepPurple,
+    indicatorColor = BentoLavenderContainer,
+    unselectedIconColor = BentoSecondaryText,
+    unselectedTextColor = BentoSecondaryText
+)

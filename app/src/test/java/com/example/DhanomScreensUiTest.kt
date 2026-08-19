@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import com.example.data.model.*
 import com.example.domain.analytics.FinancialAnalyticsEngine
+import com.example.domain.analytics.PortfolioAnalyticsEngine
 import com.example.ui.screens.*
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.LedgerSort
@@ -191,5 +192,69 @@ class DhanomScreensUiTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("budgets_goals_screen").assertIsDisplayed()
+    }
+
+    @Test
+    fun testPortfolioScreenRendersSuccessfully() {
+        val holdings = listOf(
+            PortfolioHoldingEntity(
+                id = 1L,
+                instrumentName = "Nifty 50 Index Fund",
+                symbol = "NIFTYBEES",
+                assetClass = AssetClass.INDEX_ETF,
+                region = InvestmentRegion.INDIA,
+                quantity = 120.0,
+                avgBuyPrice = 210.0,
+                currentPrice = 245.0,
+                investedAmount = 25200.0,
+                currentValue = 29400.0,
+                isSip = true,
+                sipMonthlyAmount = 5000.0
+            )
+        )
+        val summary = PortfolioAnalyticsEngine.calculatePortfolioSummary(holdings)
+        val allocations = PortfolioAnalyticsEngine.calculateAssetClassAllocations(holdings)
+
+        composeTestRule.setContent {
+            MyApplicationTheme {
+                PortfolioScreen(
+                    holdings = holdings,
+                    portfolioSummary = summary,
+                    assetAllocations = allocations,
+                    onAddHoldingClick = {},
+                    onEditHolding = {},
+                    onDeleteHolding = {},
+                    onUpdatePrices = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("portfolio_screen").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("portfolio_summary_card").assertExists()
+    }
+
+    @Test
+    fun testReportsExportScreenRendersSuccessfully() {
+        val summary = FinancialAnalyticsEngine.calculateCashFlowSummary(sampleTransactions)
+
+        composeTestRule.setContent {
+            MyApplicationTheme {
+                ReportsExportScreen(
+                    transactions = sampleTransactions,
+                    holdings = emptyList(),
+                    budgets = emptyList(),
+                    goals = emptyList(),
+                    memories = emptyList(),
+                    chatMessages = emptyList(),
+                    cashFlowSummary = summary,
+                    onExportBackup = {},
+                    onImportBackup = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("reports_export_screen").assertIsDisplayed()
     }
 }
