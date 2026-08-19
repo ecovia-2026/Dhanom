@@ -138,8 +138,6 @@ dependencies {
   ksp(libs.moshi.kotlin.codegen)
 }
 
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
-tasks.withType(KotlinCompile::class.java).configureEach {
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
     kotlinOptions.jvmTarget = "11"
 }
