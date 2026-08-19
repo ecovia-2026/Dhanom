@@ -33,7 +33,7 @@ jobs:
       - name: Build debug APK
         # If a Gradle wrapper exists the action will use it; otherwise it will use installed Gradle.
         run: |
-          gradle assembleDebug --no-daemon --info
+          gradle assembleDebug --no-daemon --no-configuration-cache --info --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
