@@ -17,7 +17,7 @@ android {
 
   defaultConfig {
     applicationId = "com.aistudio.dhanom.finance"
-    minSdk = 24
+    minSdk = 16
     targetSdk = 36
     versionCode = 1
     versionName = "1.0"
