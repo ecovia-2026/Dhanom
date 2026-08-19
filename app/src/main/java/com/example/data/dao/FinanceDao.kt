@@ -153,27 +153,3 @@ interface PortfolioDao {
     @Query("DELETE FROM portfolio_holdings")
     suspend fun clearAllHoldings()
 }
-
-@Dao
-interface PortfolioDao {
-    @Query("SELECT * FROM portfolio_holdings ORDER BY investedAmount DESC")
-    fun getAllHoldings(): Flow<List<PortfolioHoldingEntity>>
-
-    @Query("SELECT * FROM portfolio_holdings WHERE id = :id")
-    suspend fun getHoldingById(id: Long): PortfolioHoldingEntity?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertHolding(holding: PortfolioHoldingEntity): Long
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertHoldings(holdings: List<PortfolioHoldingEntity>)
-
-    @Update
-    suspend fun updateHolding(holding: PortfolioHoldingEntity)
-
-    @Delete
-    suspend fun deleteHolding(holding: PortfolioHoldingEntity)
-
-    @Query("DELETE FROM portfolio_holdings")
-    suspend fun clearAllHoldings()
-}

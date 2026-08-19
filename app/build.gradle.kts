@@ -9,13 +9,16 @@ plugins {
   alias(libs.plugins.google.services)
 }
 
+
+
+
 android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
     applicationId = "com.aistudio.dhanom.finance"
-    minSdk = 24
+    minSdk = 23
     targetSdk = 36
     versionCode = 1
     versionName = "1.0"
@@ -100,7 +103,7 @@ dependencies {
   implementation(libs.androidx.room.runtime)
   // implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
-  implementation(libs.firebase.ai)
+  // implementation(libs.firebase.ai) // removed in PR to avoid manifest minSdk conflict (library requires minSdk 23)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 
@@ -136,4 +139,10 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    }
 }
