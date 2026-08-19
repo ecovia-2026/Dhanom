@@ -2,9 +2,8 @@
 plugins {
   alias(libs.plugins.android.application) apply false
   alias(libs.plugins.kotlin.compose) apply false
-  // Explicitly declare Kotlin Android and Kapt with versions to ensure they're available in the plugin classpath
-  id("org.jetbrains.kotlin.android") version "2.2.10" apply false
-  id("org.jetbrains.kotlin.kapt") version "2.2.10" apply false
+  // Kotlin Android and Kapt are provided via the version catalog aliases; avoid duplicate plugin registrations
+  // (Removed explicit id(...) entries to prevent 'kotlin' extension registration conflicts)
   alias(libs.plugins.roborazzi) apply false
   alias(libs.plugins.secrets) apply false
   alias(libs.plugins.google.services) apply false
