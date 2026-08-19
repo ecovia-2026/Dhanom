@@ -41,3 +41,21 @@ jobs:
           name: DhanomAI-Finance-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
+
+  upload-existing-apk:
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload existing APK files
+        uses: actions/upload-artifact@v4
+        with:
+          name: existing-apks
+          path: |
+            DhanomAI-Finance-debug.apk
+            DhanomAI-Finance.apk
+            DhanomAI-Finance-Downloadable.apk
+          retention-days: 7
