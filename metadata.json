@@ -1,0 +1,6 @@
+{
+  "name": "Dhanom AI",
+  "description": "Offline-first personal finance AI assistant with interactive cash flow flowcharts, spending analytics, habit-learning brain, and conversational command tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
