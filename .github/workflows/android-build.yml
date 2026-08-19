@@ -50,7 +50,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Upload existing APK files
+      - name: Create merged APK package
+        run: |
+          mkdir -p merged_apks
+          cp DhanomAI-Finance-debug.apk merged_apks/ || true
+          cp DhanomAI-Finance.apk merged_apks/ || true
+          cp DhanomAI-Finance-Downloadable.apk merged_apks/ || true
+          # Create a simple manifest describing minimum supported SDK (source minSdk is 24; cannot safely target API 16 because project uses Jetpack Compose which requires minSdk 21+)
+          echo "Merged APK bundle for convenience. Source project minSdk: 24 (original)." > merged_apks/README.txt
+          zip -r merged_apks.zip merged_apks || true
+
+      - name: Upload merged APKs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-apks
+          path: merged_apks.zip
+          retention-days: 7
+
+      - name: Upload existing APK files (individual)
         uses: actions/upload-artifact@v4
         with:
           name: existing-apks
