@@ -103,7 +103,7 @@ dependencies {
   implementation(libs.androidx.room.runtime)
   // implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
-  implementation(libs.firebase.ai)
+  // implementation(libs.firebase.ai) // removed in PR to avoid manifest minSdk conflict (library requires minSdk 23)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 
