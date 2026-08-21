@@ -1,5 +1,10 @@
 # Dhan-OM ॐ — Offline-First Personal Finance AI Companion 🇮🇳
 
+> **Install:** GitHub → Actions → latest green **Android CI - Build APK** → artifact
+> **`DhanomAI-Finance-debug-apk`** (~40 MB) → unzip → `app-debug.apk`.
+> Uninstall any old Dhan-OM first. Ignore `existing-apks` / `merged-apks`.
+> See [Install the APK](#install-the-apk-sideload).
+
 **Dhan-OM** is a privacy-first Android app and your personal finance brain:
 expense tracker, budget planner, investment & portfolio manager, financial-goal
 strategist, and a conversational AI that you can **talk to** (type or voice).
@@ -74,18 +79,24 @@ across the Dashboard, Ledger, Flow and Portfolio screens.
 - Want to explore the UI? *Profile → Data Control → Load demo data* (explicit).
 - Want a clean slate? *Profile → Data Control → Clear ALL data*.
 
-## Building the APK
+## Install the APK (sideload)
 
-The APK builds automatically in **GitHub Actions** on every push
-(`.github/workflows/android-build.yml`): JDK 17 → Gradle 9.3.1 →
-`gradle assembleDebug` → uploads the signed, installable APK as an artifact.
+GitHub Actions always lists extra leftover artifacts. **Only this one is real:**
 
-**Download the ready APK:** GitHub → **Actions** → latest green
-*"Android CI - Build APK"* run → **Artifacts** → `DhanomAI-Finance-debug-apk`
-(unzip → `app-debug.apk`).
+1. **Uninstall** any existing Dhan-OM first  
+   Settings → Apps → **Dhan-OM** → Uninstall  
+   (older builds were signed with a different key; Android shows **App not installed** if you try to overwrite them.)
+2. Open the latest green run: [Android CI - Build APK](https://github.com/ecovia-2026/Dhanom/actions/workflows/android-build.yml)
+3. Download **`DhanomAI-Finance-debug-apk`** (about 40 MB).  
+   Ignore `existing-apks` and `merged-apks` — those are not the app.
+4. **Unzip** the download. Inside is `app-debug.apk`.  
+   Do **not** rename the zip to `.apk` and install that — it will fail.
+5. Open `app-debug.apk`. Allow **Install unknown apps** for Files/Chrome.  
+   If Play Protect warns, tap **Install anyway** (SMS auto-track is a restricted permission).
 
-**Build locally:** `gradle assembleDebug` (JDK 17 + Android SDK API 36.x).
-Release builds are signed with the debug key so they remain side-loadable.
+The APK is signed with v1+v2+v3 using the committed sideload keystore so Xiaomi / Vivo / Oppo / Realme / Samsung installers accept it.
+
+**Build locally:** `gradle assembleDebug` (JDK 17 + Android SDK API 36).
 
 ## Optional: Gemini key
 

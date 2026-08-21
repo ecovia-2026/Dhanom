@@ -25,14 +25,37 @@ val geminiApiKey: String = System.getenv("GEMINI_API_KEY")
 
 android {
   namespace = "com.example"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  // Compile against Android 16 (API 36) without pinning a QPR/minor extension
+  // that some OEM package installers treat as "incompatible".
+  compileSdk { version = release(36) }
+
+  val sideloadKeystore = rootProject.file("keystore/dhanom-sideload.jks")
+  require(sideloadKeystore.isFile) {
+    "Missing ${sideloadKeystore.path}. This committed PKCS12 is required so every CI APK is signed with the same, sideload-friendly key (v1+v2+v3)."
+  }
+
+  signingConfigs {
+    create("sideload") {
+      storeFile = sideloadKeystore
+      storePassword = "android"
+      keyAlias = "androiddebugkey"
+      keyPassword = "android"
+      storeType = "PKCS12"
+      // AGP disables v1 (JAR) signing when minSdk >= 24. Xiaomi / Vivo / Oppo /
+      // Realme / Samsung package installers still reject v2-only APKs with a
+      // generic "App not installed". Always ship v1+v2+v3.
+      enableV1Signing = true
+      enableV2Signing = true
+      enableV3Signing = true
+    }
+  }
 
   defaultConfig {
     applicationId = "com.aistudio.dhanom.finance"
     minSdk = 24
     targetSdk = 36
-    versionCode = 5
-    versionName = "1.5"
+    versionCode = 6
+    versionName = "1.6"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -48,12 +71,16 @@ android {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      // Sign release builds with the debug key so the APK remains directly
-      // installable / side-loadable. Swap in a real upload keystore for
-      // Play Store distribution.
-      signingConfig = signingConfigs.getByName("debug")
+      signingConfig = signingConfigs.getByName("sideload")
     }
-    debug {}
+    debug {
+      // assembleDebug is what CI uploads. Make it look like a normal app so
+      // Play Protect / OEM installers do not silently refuse it.
+      isDebuggable = false
+      isMinifyEnabled = false
+      isCrunchPngs = false
+      signingConfig = signingConfigs.getByName("sideload")
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -67,6 +94,14 @@ android {
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
+  }
+  packaging {
+    jniLibs {
+      // Uncompressed + 16 KB ZIP-aligned (AGP 8.5.1+). Do NOT enable
+      // useLegacyPackaging / abiFilters — those produced the 22 MB APK that
+      // failed to install.
+      useLegacyPackaging = false
+    }
   }
 }
 
