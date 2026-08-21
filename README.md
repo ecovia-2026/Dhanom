@@ -81,20 +81,17 @@ across the Dashboard, Ledger, Flow and Portfolio screens.
 
 ## Install the APK (sideload)
 
-GitHub Actions always lists extra leftover artifacts. **Only this one is real:**
+v1.7 is a **new app id** (`com.dhanom.finance`) signed the same way as the
+original 64 MB APK that installed (Android debug cert + v1+v2+v3, all native
+ABIs). It will **not** fight an old Dhan-OM left on the phone.
 
-1. **Uninstall** any existing Dhan-OM first  
-   Settings → Apps → **Dhan-OM** → Uninstall  
-   (older builds were signed with a different key; Android shows **App not installed** if you try to overwrite them.)
-2. Open the latest green run: [Android CI - Build APK](https://github.com/ecovia-2026/Dhanom/actions/workflows/android-build.yml)
-3. Download **`DhanomAI-Finance-debug-apk`** (about 40 MB).  
-   Ignore `existing-apks` and `merged-apks` — those are not the app.
-4. **Unzip** the download. Inside is `app-debug.apk`.  
-   Do **not** rename the zip to `.apk` and install that — it will fail.
-5. Open `app-debug.apk`. Allow **Install unknown apps** for Files/Chrome.  
-   If Play Protect warns, tap **Install anyway** (SMS auto-track is a restricted permission).
-
-The APK is signed with v1+v2+v3 using the committed sideload keystore so Xiaomi / Vivo / Oppo / Realme / Samsung installers accept it.
+1. Open the latest green run: [Android CI - Build APK](https://github.com/ecovia-2026/Dhanom/actions/workflows/android-build.yml)
+2. Download **only** **`DhanomAI-Finance-debug-apk`** (tens of MB).  
+   Skip `merged-apks` (a few hundred bytes — not the app).
+3. **Unzip**. Install **`app-debug.apk`**. Never install the `.zip`.
+4. Allow **Install unknown apps** for Files/Chrome.
+5. If Play Protect / MIUI Security warns, tap **Install anyway**.
+6. You can delete any leftover older Dhan-OM afterwards.
 
 **Build locally:** `gradle assembleDebug` (JDK 17 + Android SDK API 36).
 

@@ -25,25 +25,14 @@ val geminiApiKey: String = System.getenv("GEMINI_API_KEY")
 
 android {
   namespace = "com.example"
-  // Compile against Android 16 (API 36) without pinning a QPR/minor extension
-  // that some OEM package installers treat as "incompatible".
   compileSdk { version = release(36) }
 
-  val sideloadKeystore = rootProject.file("keystore/dhanom-sideload.jks")
-  require(sideloadKeystore.isFile) {
-    "Missing ${sideloadKeystore.path}. This committed PKCS12 is required so every CI APK is signed with the same, sideload-friendly key (v1+v2+v3)."
-  }
-
+  // Use AGP's well-known Android debug certificate (every phone accepts it)
+  // and FORCE v1 JAR signing. AGP skips v1 when minSdk>=24; Xiaomi/Vivo/Oppo/
+  // Realme/Samsung then show "App not installed" / "blocked for security".
+  // The previous OpenSSL PKCS12 key produced a signature some OEMs reject.
   signingConfigs {
-    create("sideload") {
-      storeFile = sideloadKeystore
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-      storeType = "PKCS12"
-      // AGP disables v1 (JAR) signing when minSdk >= 24. Xiaomi / Vivo / Oppo /
-      // Realme / Samsung package installers still reject v2-only APKs with a
-      // generic "App not installed". Always ship v1+v2+v3.
+    getByName("debug") {
       enableV1Signing = true
       enableV2Signing = true
       enableV3Signing = true
@@ -51,11 +40,13 @@ android {
   }
 
   defaultConfig {
-    applicationId = "com.aistudio.dhanom.finance"
+    // New applicationId so this installs even if an older Dhan-OM (different
+    // signature) is stuck on the phone. It will appear as a fresh app.
+    applicationId = "com.dhanom.finance"
     minSdk = 24
     targetSdk = 36
-    versionCode = 6
-    versionName = "1.6"
+    versionCode = 7
+    versionName = "1.7"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -71,15 +62,13 @@ android {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("sideload")
+      signingConfig = signingConfigs.getByName("debug")
     }
+    // Match the 64 MB APK that DID install: default debug, v1+v2+v3, all ABIs.
     debug {
-      // assembleDebug is what CI uploads. Make it look like a normal app so
-      // Play Protect / OEM installers do not silently refuse it.
-      isDebuggable = false
       isMinifyEnabled = false
       isCrunchPngs = false
-      signingConfig = signingConfigs.getByName("sideload")
+      signingConfig = signingConfigs.getByName("debug")
     }
   }
   compileOptions {

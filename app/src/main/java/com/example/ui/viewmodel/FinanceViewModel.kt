@@ -598,9 +598,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             // Cycle through human-like "thinking" stages while the brain works.
             val stages = listOf(
                 "Thinking…",
-                "Analyzing your data…",
-                "Reading your records…",
-                "Writing the best answer…",
+                "Analysis…",
+                "Reading…",
+                "Writing…",
+                "Getting you the best output…",
                 "Output verification ongoing…"
             )
             val stageJob = launch {
@@ -1243,9 +1244,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
 
-                _uploadStatus.value = UploadStatus(name, "Done ✓")
+                _uploadStatus.value = UploadStatus(name, "Uploading 100%", 1f)
                 showSnackbar("Attached $name ($sizeLabel)")
-                kotlinx.coroutines.delay(2500)
+                kotlinx.coroutines.delay(500)
                 if (_uploadStatus.value?.name == name) _uploadStatus.value = null
             } catch (t: Throwable) {
                 _uploadStatus.value = UploadStatus(name, "Failed: ${t.message?.take(60) ?: "error"}")
