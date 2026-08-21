@@ -3,12 +3,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.RECEIVE_SMS" />
-    <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- SMS is optional — do not block install on Wi-Fi-only / no-telephony devices. -->
-    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <application
         android:name=".DhanomApplication"
@@ -23,10 +18,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
-
-        <!-- Optional native libs for LiteRT-LM GPU/NPU acceleration -->
-        <uses-native-library android:name="libvndksupport.so" android:required="false" />
-        <uses-native-library android:name="libOpenCL.so" android:required="false" />
 
         <activity
             android:name=".MainActivity"
@@ -51,14 +42,14 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <receiver
-            android:name=".data.sms.SmsReceiver"
+        <service
+            android:name=".data.sms.BankNotificationListener"
             android:exported="true"
-            android:permission="android.permission.BROADCAST_SMS">
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
-                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+                <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
-        </receiver>
+        </service>
     </application>
 
 </manifest>

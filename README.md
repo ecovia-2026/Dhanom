@@ -1,9 +1,9 @@
 # Dhan-OM ॐ — Offline-First Personal Finance AI Companion 🇮🇳
 
-> **Install:** GitHub → Actions → latest green **Android CI - Build APK** → artifact
-> **`DhanomAI-Finance-debug-apk`** (~40 MB) → unzip → `app-debug.apk`.
-> Uninstall any old Dhan-OM first. Ignore `existing-apks` / `merged-apks`.
-> See [Install the APK](#install-the-apk-sideload).
+> **Install v1.8:** GitHub → Actions → latest green **Android CI - Build APK** →
+> **`DhanomAI-Finance-debug-apk`** → **unzip** → `app-debug.apk`.
+> This APK has **no native .so files** (that is why older 40–60 MB builds
+> showed “App not installed” on Android 15+). Ignore `merged-apks`.
 
 **Dhan-OM** is a privacy-first Android app and your personal finance brain:
 expense tracker, budget planner, investment & portfolio manager, financial-goal
@@ -102,9 +102,8 @@ at build time — or simply paste it at runtime in *Profile → AI Brain*.
 
 ## Notes
 
-- **Android 16 (API 36) ready:** compileSdk 36.1, targetSdk 36, minSdk 24
-  (MediaPipe requirement), edge-to-edge UI, and native libraries are 16 KB
-  page-aligned.
+- **Install-safe on Android 15+ 16 KB phones:** no native `.so` in the APK
+  (LiteRT 4 KB libs were the install blocker). Cloud Brain for LLM answers.
 - **Welcome voice:** the app speaks *"Welcome to Dhan Om, your personal AI"* on
   launch (toggle in Profile).
 - All financial data stays on-device; no account or cloud sync unless you

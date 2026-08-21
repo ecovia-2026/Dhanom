@@ -188,14 +188,13 @@ fun DhanomChatScreen(
                                     modifier = Modifier
                                         .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(if (aiMode == "gemma" || aiMode == "cloud") BentoPositiveGreen else Color(0xFF9E9E9E))
+                                        .background(if (aiMode == "cloud") BentoPositiveGreen else Color(0xFF9E9E9E))
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = when (aiMode) {
                                         "cloud" -> "Cloud Brain (most accurate)"
-                                        "gemma" -> "Gemma 4 E4B (on-device)"
-                                        else -> "Gemma 4 E4B (on-device)"
+                                        else -> "On-device math"
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = BentoSecondaryText

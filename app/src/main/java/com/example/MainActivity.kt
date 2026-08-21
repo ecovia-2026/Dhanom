@@ -274,7 +274,7 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
                             memories = brainMemories,
                             insights = personalizedInsights,
                             isChatLoading = uiState.isChatLoading,
-                            aiMode = if (aiSettings.cloudEnabled && aiSettings.cloudApiKey.isNotBlank()) "cloud" else "gemma",
+                            aiMode = if (aiSettings.cloudEnabled && aiSettings.cloudApiKey.isNotBlank()) "cloud" else "local",
                             thinkingStage = thinkingStage,
                             uploadStatus = uploadStatus,
                             onSendMessage = { viewModel.sendChatMessage(it) },
@@ -407,19 +407,19 @@ fun DhanomFinanceApp(viewModel: FinanceViewModel) {
     }
 
     // First-run: offer to download the on-device Gemma 4 E4B brain.
-    if (showGemmaPrompt && !isModelInstalled) {
+    if (showGemmaPrompt && aiSettings.cloudApiKey.isBlank()) {
         AlertDialog(
             onDismissRequest = { showGemmaPrompt = false },
-            title = { Text("Install the on-device Gemma brain?") },
+            title = { Text("Add a Cloud Brain key?") },
             text = {
                 Text(
-                    "Dhan-OM runs Google's Gemma 4 E4B fully on your phone (~3.7 GB). " +
-                    "Download once and every answer becomes real AI reasoning — no internet, no API key, no cloud."
+                    "For ChatGPT-class accuracy, open Profile → Cloud Brain, pick Groq or Gemini, and paste a free API key. " +
+                    "Your ledger never leaves this phone. Local math still works offline with no key."
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showGemmaPrompt = false; viewModel.downloadGemmaModel() }) {
-                    Text("Download now", fontWeight = FontWeight.Bold)
+                TextButton(onClick = { showGemmaPrompt = false; viewModel.selectTab(FinanceTab.PROFILE) }) {
+                    Text("Open Profile", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -441,7 +441,7 @@ private fun DrawerHeader(profile: UserProfile, aiSettings: com.example.data.pref
         Text("Personal Finance AI Companion", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
         Spacer(Modifier.height(10.dp))
         Text(profile.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = palette.onPrimaryContainer)
-        Text(if (aiSettings.cloudEnabled && aiSettings.cloudApiKey.isNotBlank()) "Brain: Cloud + Gemma fallback" else "Brain: Gemma 4 E4B (on-device)", style = MaterialTheme.typography.labelSmall, color = palette.secondaryText)
+        Text(if (aiSettings.cloudEnabled && aiSettings.cloudApiKey.isNotBlank()) "Brain: Cloud (accurate)" else "Brain: on-device math", style = MaterialTheme.typography.labelSmall, color = palette.secondaryText)
     }
 }
 

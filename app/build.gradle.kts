@@ -44,9 +44,12 @@ android {
     // signature) is stuck on the phone. It will appear as a fresh app.
     applicationId = "com.dhanom.finance"
     minSdk = 24
-    targetSdk = 36
-    versionCode = 7
-    versionName = "1.7"
+    // 34 = widest sideload compatibility. 16 KB phones still install a
+    // Kotlin-only APK (no native .so). Targeting 35+ + LiteRT 4 KB .so is
+    // what made every previous build show "App not installed".
+    targetSdk = 34
+    versionCode = 8
+    versionName = "1.8"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -127,8 +130,8 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
-  // On-device Gemma 4 E4B brain (LiteRT-LM) + local HTTP bridge for other apps/phones
-  implementation(libs.litertlm.android)
+  // LiteRT-LM is intentionally NOT packaged: its native .so files block
+  // install on Android 15+ 16 KB devices. Cloud Brain + local math remain.
   implementation(libs.nanohttpd)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)

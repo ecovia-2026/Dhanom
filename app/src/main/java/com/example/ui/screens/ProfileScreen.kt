@@ -3,9 +3,7 @@ package com.example.ui.screens
 import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -92,10 +90,6 @@ fun ProfileScreen(
         cm.setPrimaryClip(ClipData.newPlainText("Dhan-OM API key", aiSettings.serverApiKey))
     }
 
-    val smsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { _ ->
-        // result ignored; the toggle below reflects intent
-    }
-
     if (showClearConfirm) {
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },
@@ -179,28 +173,27 @@ fun ProfileScreen(
             Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.dp, palette.border)) {
                 Column(Modifier.padding(18.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Sms, contentDescription = null, tint = palette.primary)
+                        Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = palette.primary)
                         Spacer(Modifier.width(8.dp))
-                        Text("Auto Tracking (bank SMS)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = palette.accent)
+                        Text("Auto Tracking (bank alerts)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = palette.accent)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("When enabled, Dhan-OM reads your SMS inbox (last 45 days) and every new bank / UPI / card message, then auto-logs debit & credit with merchant, card/UPI and amount. Give READ SMS permission when asked.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
+                    Text("Tracks GPay / PhonePe / bank notifications (UPI, card, account). Notification access is granted in system settings after install — SMS permission is not requested because sideloading SMS apps is blocked on many phones.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Switch(checked = smsTracking, onCheckedChange = { v ->
                             smsTracking = v
                             if (v) {
-                                val perms = if (Build.VERSION.SDK_INT >= 33) arrayOf(
-                                    "android.permission.RECEIVE_SMS",
-                                    "android.permission.READ_SMS",
-                                    "android.permission.POST_NOTIFICATIONS"
-                                ) else arrayOf("android.permission.RECEIVE_SMS", "android.permission.READ_SMS")
-                                smsPermissionLauncher.launch(perms)
+                                try {
+                                    context.startActivity(
+                                        android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                                    )
+                                } catch (_: Exception) { }
                             }
                             onSaveSmsTracking(v)
                         })
                         Spacer(Modifier.width(8.dp))
-                        Text("Track bank SMS automatically", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = palette.accent)
+                        Text("Track bank alerts automatically", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = palette.accent)
                     }
                     Spacer(Modifier.height(10.dp))
                     OutlinedTextField(
@@ -229,7 +222,7 @@ fun ProfileScreen(
                         Text("Gemma 4 E4B Brain", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = palette.onPrimaryContainer)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("The brain runs fully on-device. Model status: $modelStatus", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = palette.onPrimaryContainer)
+                    Text("On-device LiteRT was removed so this APK installs on Android 15+ (16 KB phones). Use Cloud Brain below for ChatGPT-class speed and accuracy. Status: $modelStatus", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = palette.onPrimaryContainer)
                     OutlinedTextField(
                         gemmaUrl, { gemmaUrl = it },
                         label = { Text("Model URL (.litertlm)") },
@@ -383,7 +376,7 @@ fun ProfileScreen(
         item {
             Surface(shape = RoundedCornerShape(24.dp), color = palette.surfaceVariant, border = BorderStroke(1.dp, palette.border)) {
                 Column(Modifier.padding(18.dp)) {
-                    Text("Dhan-OM v1.5", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = palette.accent)
+                    Text("Dhan-OM v1.8", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = palette.accent)
                     Text("Private by default · ledger never uploaded · speak any language", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
                 }
             }
