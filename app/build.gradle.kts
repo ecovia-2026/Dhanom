@@ -31,12 +31,8 @@ android {
     applicationId = "com.aistudio.dhanom.finance"
     minSdk = 24
     targetSdk = 36
-    versionCode = 4
-    versionName = "1.4"
-
-    ndk {
-      abiFilters += listOf("arm64-v8a", "armeabi-v7a")
-    }
+    versionCode = 5
+    versionName = "1.5"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -57,11 +53,7 @@ android {
       // Play Store distribution.
       signingConfig = signingConfigs.getByName("debug")
     }
-    debug {
-      // Sideload-friendly: Play Protect often blocks debuggable APKs.
-      isDebuggable = false
-      isMinifyEnabled = false
-    }
+    debug {}
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -75,11 +67,6 @@ android {
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
-  }
-  packaging {
-    jniLibs {
-      useLegacyPackaging = true
-    }
   }
 }
 

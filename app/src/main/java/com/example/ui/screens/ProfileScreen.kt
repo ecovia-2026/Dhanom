@@ -383,7 +383,7 @@ fun ProfileScreen(
         item {
             Surface(shape = RoundedCornerShape(24.dp), color = palette.surfaceVariant, border = BorderStroke(1.dp, palette.border)) {
                 Column(Modifier.padding(18.dp)) {
-                    Text("Dhan-OM v1.4", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = palette.accent)
+                    Text("Dhan-OM v1.5", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = palette.accent)
                     Text("Private by default · ledger never uploaded · speak any language", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
                 }
             }
