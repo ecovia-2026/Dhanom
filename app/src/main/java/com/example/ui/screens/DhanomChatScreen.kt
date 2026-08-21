@@ -256,25 +256,26 @@ fun DhanomChatScreen(
 
                 if (isChatLoading) {
                     item {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = BentoLavenderContainer,
+                            modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = BentoDeepPurple
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            androidx.compose.animation.AnimatedContent(
-                                targetState = thinkingStage.ifBlank { "Thinking…" },
-                                label = "thinking"
-                            ) { stage ->
-                                Text(
-                                    text = stage,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = BentoSecondaryText
-                                )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                            ) {
+                                androidx.compose.animation.AnimatedContent(
+                                    targetState = thinkingStage.ifBlank { "Thinking…" },
+                                    label = "thinking"
+                                ) { stage ->
+                                    Text(
+                                        text = stage,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = BentoDeepPurple
+                                    )
+                                }
                             }
                         }
                     }
@@ -345,15 +346,33 @@ fun DhanomChatScreen(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
                 ) {
-                    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (up.state.startsWith("Done")) Icons.Default.CheckCircle else if (up.state.startsWith("Failed")) Icons.Default.Error else Icons.Default.UploadFile,
-                            contentDescription = null,
-                            tint = if (up.state.startsWith("Done")) BentoActiveGreen else if (up.state.startsWith("Failed")) BentoExpenseRed else BentoPrimaryPurple,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("${up.name} · ${up.state}", style = MaterialTheme.typography.labelSmall, color = BentoSecondaryText, maxLines = 1)
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = when {
+                                    up.state.startsWith("100") || up.state.startsWith("Done") -> Icons.Default.CheckCircle
+                                    up.state.startsWith("Failed") -> Icons.Default.Error
+                                    else -> Icons.Default.UploadFile
+                                },
+                                contentDescription = null,
+                                tint = when {
+                                    up.state.startsWith("100") || up.state.startsWith("Done") -> BentoActiveGreen
+                                    up.state.startsWith("Failed") -> BentoExpenseRed
+                                    else -> BentoPrimaryPurple
+                                },
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("${up.name} · ${up.state}", style = MaterialTheme.typography.labelSmall, color = BentoSecondaryText, maxLines = 1)
+                        }
+                        if (up.progress >= 0f && !up.state.startsWith("Failed")) {
+                            Spacer(Modifier.height(6.dp))
+                            LinearProgressIndicator(
+                                progress = { up.progress.coerceIn(0f, 1f) },
+                                modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                color = if (up.progress >= 1f) BentoActiveGreen else BentoPrimaryPurple
+                            )
+                        }
                     }
                 }
             }
@@ -676,11 +695,27 @@ fun ChatBubbleItem(message: ChatMessageEntity) {
             modifier = Modifier.widthIn(max = 300.dp)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text(
-                    text = message.messageText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isUser) Color.White else BentoCardText
-                )
+                if (message.actionType == "ATTACHMENT_IMAGE") {
+                    AttachmentImage(path = message.actionPayload)
+                    Spacer(modifier = Modifier.height(8.dp))
+                } else if (message.actionType == "ATTACHMENT_FILE") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.InsertDriveFile,
+                            contentDescription = null,
+                            tint = if (isUser) Color.White else BentoPrimaryPurple,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                }
+                if (message.messageText.isNotBlank()) {
+                    Text(
+                        text = message.messageText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isUser) Color.White else BentoCardText
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(4.dp))
 

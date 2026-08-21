@@ -19,3 +19,4 @@ debug.keystore
 # Built APKs are published via CI to the apk-dist branch (see README).
 *.apk
 /apk/
+/dist/

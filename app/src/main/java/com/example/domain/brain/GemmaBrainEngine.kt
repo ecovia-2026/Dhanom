@@ -73,7 +73,10 @@ class GemmaBrainEngine(private val context: Context) {
             val config = EngineConfig(
                 modelPath = modelFile().absolutePath,
                 backend = backend,
-                cacheDir = context.cacheDir.path
+                // Keep the compiled cache in filesDir so Android does not evict
+                // the ~2 GB JIT/KV cache from cacheDir (that is what made replies
+                // slow even with 16 GB RAM — the model was being recompiled).
+                cacheDir = File(context.filesDir, "gemma_cache").apply { mkdirs() }.path
             )
             Engine(config).also { it.initialize() }
         } catch (e: Throwable) {

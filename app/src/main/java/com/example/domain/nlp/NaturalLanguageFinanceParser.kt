@@ -161,7 +161,7 @@ object NaturalLanguageFinanceParser {
                 AMOUNT_PATTERN.matcher(trimmed).find()
 
         // 9. Check for Temporal / Specific Spending Queries: "Show me my spending last month", "How much did I spend this week?", "What did I spend on groceries?"
-        if (!isExplicitExpenseLog && (lower.contains("spending") || lower.contains("how much did i spend") || lower.contains("how much have i spent") || lower.contains("what did i spend") || lower.contains("total expenses") || lower.contains("spending on") || (lower.contains("spent") && lower.contains("how much")))) {
+        if (!isExplicitExpenseLog && (lower.contains("spending") || lower.contains("how much did i spend") || lower.contains("how much have i spent") || lower.contains("what did i spend") || lower.contains("total expenses") || lower.contains("spending on") || (lower.contains("spent") && lower.contains("how much")) || lower.contains("kitna kharch") || lower.contains("kitna spend") || (lower.contains("kharcha") && (lower.contains("kitna") || lower.contains("how much") || lower.contains("total"))))) {
             val response = handleSpendingQuery(lower, transactions, summary)
             return ParsedFinanceCommand.QueryResponseCommand("SPENDING_QUERY", response)
         }

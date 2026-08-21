@@ -39,6 +39,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        @Suppress("DEPRECATION")
+        overridePendingTransition(R.anim.dhanom_enter, R.anim.dhanom_exit)
         enableEdgeToEdge()
 
         if (savedInstanceState == null && financeViewModel.profile.value.welcomeVoice) {
@@ -51,6 +53,12 @@ class MainActivity : ComponentActivity() {
                 DhanomFinanceApp(viewModel = financeViewModel)
             }
         }
+    }
+
+    override fun finish() {
+        super.finish()
+        @Suppress("DEPRECATION")
+        overridePendingTransition(R.anim.dhanom_enter, R.anim.dhanom_exit)
     }
 
     override fun onDestroy() {

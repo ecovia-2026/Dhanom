@@ -95,7 +95,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     val serverStatus: StateFlow<String> = _serverStatus.asStateFlow()
 
     /** Current file-upload status shown in the chat composer (Claude-style). */
-    data class UploadStatus(val name: String, val state: String) // "Uploading…" | "Processing…" | "Done" | "Failed"
+    data class UploadStatus(val name: String, val state: String, val progress: Float = -1f)
     private val _uploadStatus = MutableStateFlow<UploadStatus?>(null)
     val uploadStatus: StateFlow<UploadStatus?> = _uploadStatus.asStateFlow()
 
@@ -596,7 +596,13 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             _uiState.update { it.copy(isChatLoading = true) }
 
             // Cycle through human-like "thinking" stages while the brain works.
-            val stages = listOf("Thinking…", "Analyzing your data…", "Reading your records…", "Writing the best answer…", "Verifying the output…")
+            val stages = listOf(
+                "Thinking…",
+                "Analyzing your data…",
+                "Reading your records…",
+                "Writing the best answer…",
+                "Output verification ongoing…"
+            )
             val stageJob = launch {
                 var i = 0
                 while (true) {
@@ -963,7 +969,37 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     fun saveSmsTracking(enabled: Boolean) {
         prefs.saveSmsTracking(enabled)
-        showSnackbar(if (enabled) "SMS tracking ON — bank messages will be auto-logged" else "SMS tracking OFF")
+        if (enabled) {
+            scanSmsInbox()
+            showSnackbar("SMS tracking ON — scanning inbox and auto-logging bank/UPI/card messages")
+        } else {
+            showSnackbar("SMS tracking OFF")
+        }
+    }
+
+    /** Back-fill ledger from existing bank SMS (last 45 days). */
+    fun scanSmsInbox() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ctx = getApplication<Application>()
+            val found = com.example.data.sms.SmsInboxScanner.scan(ctx)
+            var added = 0
+            val existing = transactions.value
+            found.forEach { (tx, _) ->
+                val dup = existing.any { e ->
+                    e.notes.startsWith("Auto-logged") &&
+                        kotlin.math.abs(e.amount - tx.amount) < 0.01 &&
+                        e.merchant.equals(tx.merchant, ignoreCase = true) &&
+                        kotlin.math.abs(e.timestamp - tx.timestamp) < 36 * 3600_000L
+                }
+                if (!dup) {
+                    repository.insertTransaction(tx)
+                    added++
+                }
+            }
+            if (added > 0) {
+                showSnackbar("Auto-logged $added bank SMS transaction(s)")
+            }
+        }
     }
 
     fun savePanNumber(pan: String) {
@@ -1092,12 +1128,15 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             var name = "file"
             try {
                 name = ChatAttachmentHelper.queryDisplayName(ctx, uri).ifBlank { "file" }
-                _uploadStatus.value = UploadStatus(name, "Uploading…")
+                _uploadStatus.value = UploadStatus(name, "Uploading 0%", 0f)
                 val copied = withContext(Dispatchers.IO) {
-                    ChatAttachmentHelper.copyFromUri(ctx, uri)
+                    ChatAttachmentHelper.copyFromUri(ctx, uri) { p ->
+                        val pct = (p * 100).toInt().coerceIn(0, 100)
+                        _uploadStatus.value = UploadStatus(name, "Uploading $pct%", p)
+                    }
                 }
                 name = copied.displayName
-                _uploadStatus.value = UploadStatus(name, "Processing…")
+                _uploadStatus.value = UploadStatus(name, "Processing…", 1f)
 
                 val sizeLabel = ChatAttachmentHelper.formatSize(copied.size)
                 val previewPath = (copied.previewFile ?: copied.file).absolutePath
@@ -1121,10 +1160,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 val n = copied.displayName.lowercase()
                 when {
                     copied.isImage -> {
-                        sendChatMessage(
-                            "The user attached an image named ${copied.displayName} ($sizeLabel). Acknowledge it. You cannot see pixels yet; ask them what they'd like to do with it (log an expense from a receipt, describe it, etc.).",
-                            recordUser = false
-                        )
+                        // Do NOT send the image into Gemma (that was crashing). Show it
+                        // in the bubble; the user can ask "log this receipt" next.
                     }
                     n.endsWith(".json") && copied.size <= ChatAttachmentHelper.MAX_PARSE_BYTES -> {
                         val text = withContext(Dispatchers.IO) {
@@ -1138,7 +1175,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                         }
                         importCsv(text.take(2_000_000))
                     }
-                    (n.endsWith(".xlsx") || n.endsWith(".docx") || n.endsWith(".zip")) &&
+                    (n.endsWith(".xlsx") || n.endsWith(".xls") || n.endsWith(".docx") ||
+                        n.endsWith(".pptx") || n.endsWith(".zip") || n.endsWith(".md") ||
+                        n.endsWith(".skill") || n.endsWith(".yaml") || n.endsWith(".yml")) &&
                         copied.size <= ChatAttachmentHelper.MAX_PARSE_BYTES -> {
                         val extracted = withContext(Dispatchers.IO) {
                             com.example.data.export.FileImportHelper.toText(

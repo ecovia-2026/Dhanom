@@ -306,6 +306,25 @@ class FinancialLogicTest {
     }
 
     @Test
+    fun testHinglishSpendingQueryUsesLocalMath() {
+        val transactions = listOf(
+            TransactionEntity(
+                title = "BigBasket",
+                amount = 3200.0,
+                type = TransactionType.EXPENSE,
+                category = TransactionCategory.GROCERIES
+            )
+        )
+        val command = NaturalLanguageFinanceParser.parseCommandWithContext(
+            input = "kitna kharcha groceries",
+            transactions = transactions
+        )
+        assertTrue(command is ParsedFinanceCommand.QueryResponseCommand)
+        val q = command as ParsedFinanceCommand.QueryResponseCommand
+        assertTrue(q.responseText.contains("3,200") || q.responseText.contains("3200"))
+    }
+
+    @Test
     fun testNaturalLanguageExpenseLogging() {
         val command = NaturalLanguageFinanceParser.parseCommand("Spent $45 on groceries at Trader Joe's")
 

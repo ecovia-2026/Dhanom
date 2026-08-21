@@ -87,7 +87,11 @@ object ChatAttachmentHelper {
      * Stream-copy [uri] into app-private storage. Throws if the file exceeds
      * 500 MB or cannot be opened. Never uses `readBytes()` on the source.
      */
-    fun copyFromUri(context: Context, uri: Uri): CopiedFile {
+    fun copyFromUri(
+        context: Context,
+        uri: Uri,
+        onProgress: (Float) -> Unit = {}
+    ): CopiedFile {
         tryTakePersistablePermission(context, uri)
 
         val name = sanitizeFileName(queryDisplayName(context, uri))
@@ -108,6 +112,8 @@ object ChatAttachmentHelper {
                     val buf = ByteArray(64 * 1024)
                     var total = 0L
                     var header: ByteArray? = null
+                    val cap = if (reported > 0L) reported else MAX_UPLOAD_BYTES
+                    onProgress(0.01f)
                     while (true) {
                         val n = input.read(buf)
                         if (n <= 0) break
@@ -119,7 +125,10 @@ object ChatAttachmentHelper {
                         }
                         if (header == null) header = buf.copyOf(n.coerceAtMost(32))
                         output.write(buf, 0, n)
+                        val p = (total.toFloat() / cap.toFloat()).coerceIn(0.01f, 0.99f)
+                        onProgress(p)
                     }
+                    onProgress(1f)
                     Pair(total, header ?: ByteArray(0))
                 }
             } ?: throw IllegalStateException("Could not open the selected file")
@@ -215,7 +224,11 @@ object ChatAttachmentHelper {
             while (maxSide / sample > PREVIEW_MAX_DIM) sample *= 2
             val bmp = BitmapFactory.decodeFile(
                 src.absolutePath,
-                BitmapFactory.Options().apply { inSampleSize = sample }
+                BitmapFactory.Options().apply {
+                    inSampleSize = sample
+                    inPreferredConfig = Bitmap.Config.RGB_565
+                    inDither = true
+                }
             ) ?: return false
             dest.outputStream().buffered().use { out ->
                 bmp.compress(Bitmap.CompressFormat.JPEG, 82, out)

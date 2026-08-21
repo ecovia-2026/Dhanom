@@ -13,9 +13,9 @@ data class AiSettings(
     val serverToken: String = "",
     val serverApiKey: String = "",
     val cloudEnabled: Boolean = false,
-    val cloudEndpoint: String = "https://api.openai.com/v1/chat/completions",
+    val cloudEndpoint: String = "https://api.groq.com/openai/v1/chat/completions",
     val cloudApiKey: String = "",
-    val cloudModel: String = "gpt-4o-mini"
+    val cloudModel: String = "llama-3.3-70b-versatile"
 ) {
     companion object {
         /** Official, publicly downloadable Gemma 4 E4B (LiteRT-LM format). */
@@ -112,10 +112,10 @@ class AppPrefs(context: Context) {
         serverToken = prefs.getString("server_token", "") ?: "",
         serverApiKey = prefs.getString("server_api_key", "") ?: "",
         cloudEnabled = prefs.getBoolean("cloud_enabled", false),
-        cloudEndpoint = prefs.getString("cloud_endpoint", "https://api.openai.com/v1/chat/completions")
-            ?: "https://api.openai.com/v1/chat/completions",
+        cloudEndpoint = prefs.getString("cloud_endpoint", "https://api.groq.com/openai/v1/chat/completions")
+            ?: "https://api.groq.com/openai/v1/chat/completions",
         cloudApiKey = prefs.getString("cloud_api_key", "") ?: "",
-        cloudModel = prefs.getString("cloud_model", "gpt-4o-mini") ?: "gpt-4o-mini"
+        cloudModel = prefs.getString("cloud_model", "llama-3.3-70b-versatile") ?: "llama-3.3-70b-versatile"
     )
 
     private fun loadProfile(): UserProfile = UserProfile(

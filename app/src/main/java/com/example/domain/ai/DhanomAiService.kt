@@ -70,6 +70,14 @@ class DhanomAiService {
             return@withContext DhanomAiResponse(localParsed.responseMessage, localParsed, "local")
         }
 
+        // Number questions are ALWAYS answered by the on-device analytics engine
+        // (never Gemma) so totals/lakh/crore math cannot be invented.
+        if (localParsed is ParsedFinanceCommand.QueryResponseCommand &&
+            localParsed.queryTopic in ACCURATE_LOCAL_TOPICS
+        ) {
+            return@withContext DhanomAiResponse(localParsed.responseText, localParsed, "local")
+        }
+
         // 2) Small talk & meta questions get deterministic, helpful answers.
         handleSmallTalk(userMessage)?.let {
             return@withContext DhanomAiResponse(it, null, "local")
@@ -87,10 +95,12 @@ class DhanomAiService {
             } catch (_: Exception) { /* fall back */ }
         }
 
-        // 4) On-device Gemma brain (offline).
+        // 4) On-device Gemma brain (offline). Keep the prompt SHORT — a 4B
+        // model on-device is slow when the context is thousands of tokens.
         if (gemmaGenerate != null) {
             try {
-                val reply = gemmaGenerate(systemPrompt + "\n\nUSER: " + userMessage)
+                val compact = compactGemmaPrompt(summary) + "\nUSER: " + userMessage
+                val reply = gemmaGenerate(compact)
                 if (!reply.isNullOrBlank()) {
                     return@withContext DhanomAiResponse(reply.trim(), null, "gemma")
                 }
@@ -170,5 +180,17 @@ For pure questions output NO JSON.
             return "You're welcome! 🙏 I'm always here for your money questions."
         }
         return null
+    }
+
+    private fun compactGemmaPrompt(summary: com.example.domain.analytics.CashFlowSummary): String =
+        "You are Dhan-OM. Answer in 2-4 short sentences using ₹. Never invent numbers. " +
+            "Snapshot: inflow ₹${summary.totalInflow.toInt()} outflow ₹${summary.totalOutflow.toInt()} " +
+            "net ₹${summary.netCashFlow.toInt()} savings ${summary.savingsRate.toInt()}%."
+
+    companion object {
+        private val ACCURATE_LOCAL_TOPICS = setOf(
+            "SPENDING_QUERY", "PREDICTION", "INVESTMENTS", "HEALTH_SCORE",
+            "GOALS_PACING", "CATEGORIZE", "DELETE"
+        )
     }
 }

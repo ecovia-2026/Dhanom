@@ -13,9 +13,11 @@ object FileImportHelper {
 
     fun isSupported(name: String): Boolean {
         val n = name.lowercase()
-        return n.endsWith(".xlsx") || n.endsWith(".docx") || n.endsWith(".zip") ||
+        return n.endsWith(".xlsx") || n.endsWith(".xls") || n.endsWith(".docx") ||
+                n.endsWith(".pptx") || n.endsWith(".zip") ||
                 n.endsWith(".md") || n.endsWith(".txt") || n.endsWith(".csv") ||
-                n.endsWith(".json")
+                n.endsWith(".json") || n.endsWith(".yaml") || n.endsWith(".yml") ||
+                n.endsWith(".skill") || n.endsWith(".xml") || n.endsWith(".html")
     }
 
     /** Returns text extracted from the file, or null if unsupported/unreadable. */
@@ -25,6 +27,7 @@ object FileImportHelper {
             when {
                 n.endsWith(".xlsx") -> xlsxToCsv(bytes)
                 n.endsWith(".docx") -> docxToText(bytes)
+                n.endsWith(".pptx") -> pptxToText(bytes)
                 n.endsWith(".zip") -> zipToText(bytes)
                 else -> String(bytes, Charsets.UTF_8)
             }
@@ -58,6 +61,11 @@ object FileImportHelper {
 
     private fun docxToText(bytes: ByteArray): String {
         val xml = readZip(bytes) { it == "word/document.xml" }
+        return stripTags(xml).replace(Regex("\\s+"), " ").trim()
+    }
+
+    private fun pptxToText(bytes: ByteArray): String {
+        val xml = readZip(bytes) { it.startsWith("ppt/slides/slide") && it.endsWith(".xml") }
         return stripTags(xml).replace(Regex("\\s+"), " ").trim()
     }
 
@@ -98,7 +106,8 @@ object FileImportHelper {
                 if (!entry.isDirectory) {
                     val n = entry.name.lowercase()
                     if (n.endsWith(".txt") || n.endsWith(".md") || n.endsWith(".csv") ||
-                        n.endsWith(".json") || n.endsWith(".xml")) {
+                        n.endsWith(".json") || n.endsWith(".xml") || n.endsWith(".yaml") ||
+                        n.endsWith(".yml") || n.endsWith(".skill") || n.endsWith(".html")) {
                         out.append("=== ").append(entry.name).append(" ===\n")
                         out.append(zip.readBytes().toString(Charsets.UTF_8)).append("\n\n")
                     }

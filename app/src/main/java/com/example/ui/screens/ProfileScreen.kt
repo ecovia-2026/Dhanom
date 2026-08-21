@@ -184,13 +184,17 @@ fun ProfileScreen(
                         Text("Auto Tracking (bank SMS)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = palette.accent)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("When enabled, Dhan-OM reads incoming bank / UPI / card messages and auto-logs each debit & credit with the merchant, card/UPI and amount.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
+                    Text("When enabled, Dhan-OM reads your SMS inbox (last 45 days) and every new bank / UPI / card message, then auto-logs debit & credit with merchant, card/UPI and amount. Give READ SMS permission when asked.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Switch(checked = smsTracking, onCheckedChange = { v ->
                             smsTracking = v
                             if (v) {
-                                val perms = if (Build.VERSION.SDK_INT >= 33) arrayOf("android.permission.RECEIVE_SMS", "android.permission.POST_NOTIFICATIONS") else arrayOf("android.permission.RECEIVE_SMS")
+                                val perms = if (Build.VERSION.SDK_INT >= 33) arrayOf(
+                                    "android.permission.RECEIVE_SMS",
+                                    "android.permission.READ_SMS",
+                                    "android.permission.POST_NOTIFICATIONS"
+                                ) else arrayOf("android.permission.RECEIVE_SMS", "android.permission.READ_SMS")
                                 smsPermissionLauncher.launch(perms)
                             }
                             onSaveSmsTracking(v)
@@ -263,7 +267,7 @@ fun ProfileScreen(
                         Text("Cloud Brain (most accurate)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = palette.accent)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("For the most precise answers on critical money decisions, connect a powerful cloud model (OpenAI, Groq, DeepSeek, Gemini, OpenRouter). Your own API key is required. Gemma stays as the offline fallback.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
+                    Text("Gemma 4 on-phone is a 4B model — great offline, not ChatGPT-class. For critical money decisions turn this ON and paste a FREE key (Groq Llama 3.3 70B is fastest). Gemma stays as the offline fallback. Keys: groq.com/keys · aistudio.google.com/apikey · openrouter.ai/keys", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Switch(checked = cloudEnabled, onCheckedChange = { cloudEnabled = it; onSaveAi(currentSettings()) })

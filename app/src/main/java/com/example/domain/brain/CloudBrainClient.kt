@@ -59,9 +59,10 @@ class CloudBrainClient {
     companion object {
         /** Ready-made provider presets (endpoint + model). Free-tier friendly. */
         val presets = listOf(
-            Triple("Google · Gemini 2.5 Flash (free tier)", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "gemini-2.5-flash"),
-            Triple("Groq · Llama 3.3 70B (free tier)", "https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile"),
+            Triple("Groq · Llama 3.3 70B (free, fastest)", "https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile"),
+            Triple("Google · Gemini 2.5 Flash (free)", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "gemini-2.5-flash"),
             Triple("OpenRouter · Llama 3.3 70B :free", "https://openrouter.ai/api/v1/chat/completions", "meta-llama/llama-3.3-70b-instruct:free"),
+            Triple("OpenRouter · Gemini Flash :free", "https://openrouter.ai/api/v1/chat/completions", "google/gemini-2.0-flash-exp:free"),
             Triple("OpenRouter · DeepSeek R1 :free", "https://openrouter.ai/api/v1/chat/completions", "deepseek/deepseek-r1:free"),
             Triple("Mistral · free tier", "https://api.mistral.ai/v1/chat/completions", "mistral-small-latest"),
             Triple("DeepSeek · V3 (cheap)", "https://api.deepseek.com/chat/completions", "deepseek-chat"),
