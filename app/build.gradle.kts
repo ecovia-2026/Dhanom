@@ -25,7 +25,7 @@ val geminiApiKey: String = System.getenv("GEMINI_API_KEY")
 
 android {
   namespace = "com.example"
-  compileSdk { version = release(34) }
+  compileSdk { version = release(36) }
 
   defaultConfig {
     applicationId = "com.dhanom.ai"
