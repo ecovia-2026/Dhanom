@@ -306,6 +306,14 @@ class FinancialLogicTest {
     }
 
     @Test
+    fun testDevanagariDigitsParseAsAmount() {
+        val command = NaturalLanguageFinanceParser.parseCommand("खर्च ५०० किराना")
+        assertTrue(command is ParsedFinanceCommand.AddTransactionCommand)
+        val add = command as ParsedFinanceCommand.AddTransactionCommand
+        assertEquals(500.0, add.transaction.amount, 0.01)
+    }
+
+    @Test
     fun testHinglishSpendingQueryUsesLocalMath() {
         val transactions = listOf(
             TransactionEntity(

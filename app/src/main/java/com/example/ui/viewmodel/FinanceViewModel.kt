@@ -577,7 +577,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun sendChatMessage(text: String, recordUser: Boolean = true) {
+    fun sendChatMessage(text: String, recordUser: Boolean = true, allowCloud: Boolean = true) {
         if (text.isBlank()) return
         val userText = text.trim()
         if (recordUser) updateChatDraft("")
@@ -623,9 +623,25 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     else -> "Gemma brain is loading. Try again in a moment."
                 }
             }
-            val cloudGenerate: (suspend (String) -> String?)? = if (aiSettings.value.cloudEnabled && aiSettings.value.cloudApiKey.isNotBlank()) {
-                { prompt -> cloudBrain.generate(aiSettings.value.cloudEndpoint, aiSettings.value.cloudApiKey, aiSettings.value.cloudModel, prompt, userText) }
-            } else null
+            val cloudGenerate: (suspend (String) -> String?)? =
+                if (allowCloud && aiSettings.value.cloudEnabled && aiSettings.value.cloudApiKey.isNotBlank()) {
+                    { prompt ->
+                        val safeQ = com.example.domain.privacy.PrivacyGuard.sanitizeOutgoingQuestion(userText)
+                        if (!com.example.domain.privacy.PrivacyGuard.isSafeForCloud(prompt) ||
+                            !com.example.domain.privacy.PrivacyGuard.isSafeForCloud(safeQ)
+                        ) {
+                            null
+                        } else {
+                            cloudBrain.generate(
+                                aiSettings.value.cloudEndpoint,
+                                aiSettings.value.cloudApiKey,
+                                aiSettings.value.cloudModel,
+                                prompt,
+                                safeQ
+                            )
+                        }
+                    }
+                } else null
             val aiResponse = aiService.processUserMessage(
                 userMessage = userText,
                 currentTransactions = transactions.value,
@@ -1190,14 +1206,19 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                         ) {
                             importCsv(extracted)
                         } else if (extracted.isNotBlank()) {
+                            // File text stays on-device — never uploaded to the cloud brain.
                             sendChatMessage(
                                 "Here is the content of ${copied.displayName}:\n\n" + extracted.take(4000),
-                                recordUser = false
+                                recordUser = false,
+                                allowCloud = false
                             )
                         } else {
-                            sendChatMessage(
-                                "The user attached ${copied.displayName} ($sizeLabel). Acknowledge the file.",
-                                recordUser = false
+                            repository.insertChatMessage(
+                                ChatMessageEntity(
+                                    sender = MessageSender.DHANOM_AI,
+                                    messageText = "Attached ${copied.displayName} ($sizeLabel). It stays on this phone — ask me about it.",
+                                    timestamp = System.currentTimeMillis()
+                                )
                             )
                         }
                     }

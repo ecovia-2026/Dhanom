@@ -432,8 +432,11 @@ fun DhanomChatScreen(
                         onClick = {
                             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
-                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Talk to Dhan-OM…")
+                                // Device locale — Hindi, Marathi, Tamil, etc. not forced to English.
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, Locale.getDefault().toLanguageTag())
+                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Talk to Dhan-OM")
+                                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
                             }
                             try {
                                 speechLauncher.launch(intent)

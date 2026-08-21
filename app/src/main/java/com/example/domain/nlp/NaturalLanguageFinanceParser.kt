@@ -157,11 +157,11 @@ object NaturalLanguageFinanceParser {
         }
 
         // 8. Check if this is an explicit expense logging command with an amount (e.g. "Spent ₹45 on groceries", "Paid 50 for dinner", "Bought coffee ₹6")
-        val isExplicitExpenseLog = (lower.startsWith("spent ") || lower.startsWith("spend ") || lower.startsWith("paid ") || lower.startsWith("bought ") || lower.startsWith("charged ") || lower.startsWith("log ") || lower.startsWith("add expense") || lower.startsWith("expense ") || lower.startsWith("kharcha") || lower.startsWith("kharida") || lower.startsWith("kharch hua")) &&
+        val isExplicitExpenseLog = (lower.startsWith("spent ") || lower.startsWith("spend ") || lower.startsWith("paid ") || lower.startsWith("bought ") || lower.startsWith("charged ") || lower.startsWith("log ") || lower.startsWith("add expense") || lower.startsWith("expense ") || lower.startsWith("kharcha") || lower.startsWith("kharida") || lower.startsWith("kharch hua") || lower.startsWith("खर्च") || lower.startsWith("खर्चा")) &&
                 AMOUNT_PATTERN.matcher(trimmed).find()
 
         // 9. Check for Temporal / Specific Spending Queries: "Show me my spending last month", "How much did I spend this week?", "What did I spend on groceries?"
-        if (!isExplicitExpenseLog && (lower.contains("spending") || lower.contains("how much did i spend") || lower.contains("how much have i spent") || lower.contains("what did i spend") || lower.contains("total expenses") || lower.contains("spending on") || (lower.contains("spent") && lower.contains("how much")) || lower.contains("kitna kharch") || lower.contains("kitna spend") || (lower.contains("kharcha") && (lower.contains("kitna") || lower.contains("how much") || lower.contains("total"))))) {
+        if (!isExplicitExpenseLog && (lower.contains("spending") || lower.contains("how much did i spend") || lower.contains("how much have i spent") || lower.contains("what did i spend") || lower.contains("total expenses") || lower.contains("spending on") || (lower.contains("spent") && lower.contains("how much")) || lower.contains("kitna kharch") || lower.contains("kitna spend") || (lower.contains("kharcha") && (lower.contains("kitna") || lower.contains("how much") || lower.contains("total"))) || (lower.contains("कितना") && lower.contains("खर्च")))) {
             val response = handleSpendingQuery(lower, transactions, summary)
             return ParsedFinanceCommand.QueryResponseCommand("SPENDING_QUERY", response)
         }
@@ -231,7 +231,7 @@ object NaturalLanguageFinanceParser {
         }
 
         // 13. Check for Income Logging: "Salary 5000", "Received payment 450", "Freelance income ₹800"
-        val isIncome = lower.contains("salary") || lower.contains("income") || lower.contains("received") || lower.contains("got paid") || lower.contains("freelance") || lower.contains("dividend") || lower.contains("earned") || lower.contains("aaya") || lower.contains("aay") || lower.contains("kamai") || lower.contains("kamaya") || lower.contains("tankhwah")
+        val isIncome = lower.contains("salary") || lower.contains("income") || lower.contains("received") || lower.contains("got paid") || lower.contains("freelance") || lower.contains("dividend") || lower.contains("earned") || lower.contains("aaya") || lower.contains("aay") || lower.contains("kamai") || lower.contains("kamaya") || lower.contains("tankhwah") || lower.contains("वेतन") || lower.contains("कमाई") || lower.contains("सैलरी")
         val amount = extractAmount(lower)
 
         if (isIncome && amount > 0) {
@@ -490,7 +490,7 @@ object NaturalLanguageFinanceParser {
     )
 
     private fun extractAmount(text: String): Double {
-        val lower = text.lowercase()
+        val lower = normalizeIndicDigits(text.lowercase())
         // "1.5 lakh" / "20 lakhs" / "2 crore" — Indian multipliers (before plain numbers)
         Regex("""(?i)(\d+(?:[.,]\d+)?)\s*(lakh|lakhs|lac|lacs)\b""").find(lower)?.let {
             val n = it.groupValues[1].replace(",", "").toDoubleOrNull() ?: 0.0
@@ -530,10 +530,25 @@ object NaturalLanguageFinanceParser {
         return 0.0
     }
 
+    /** ०-९ / ૦-૯ → 0-9 so Hindi/Gujarati amounts parse. */
+    private fun normalizeIndicDigits(text: String): String {
+        val sb = StringBuilder(text.length)
+        for (ch in text) {
+            sb.append(
+                when (ch) {
+                    in '०'..'९' -> ('0'.code + (ch - '०')).toChar()
+                    in '૦'..'૯' -> ('0'.code + (ch - '૦')).toChar()
+                    else -> ch
+                }
+            )
+        }
+        return sb.toString()
+    }
+
     private fun detectCategory(text: String): TransactionCategory {
         return when {
-            text.contains("rent") || text.contains("apartment") || text.contains("mortgage") || text.contains("housing") -> TransactionCategory.HOUSING
-            text.contains("grocer") || text.contains("food market") || text.contains("supermarket") || text.contains("trader joe") || text.contains("whole foods") || text.contains("safeway") || text.contains("walmart") || text.contains("bigbasket") || text.contains("dmart") || text.contains("blinkit") || text.contains("zepto") || text.contains("jiomart") || text.contains("food") || text.contains("rashan") -> TransactionCategory.GROCERIES
+            text.contains("rent") || text.contains("apartment") || text.contains("mortgage") || text.contains("housing") || text.contains("किराया") || text.contains("भाडे") -> TransactionCategory.HOUSING
+            text.contains("grocer") || text.contains("food market") || text.contains("supermarket") || text.contains("trader joe") || text.contains("whole foods") || text.contains("safeway") || text.contains("walmart") || text.contains("bigbasket") || text.contains("dmart") || text.contains("blinkit") || text.contains("zepto") || text.contains("jiomart") || text.contains("food") || text.contains("rashan") || text.contains("किराना") || text.contains("राशन") -> TransactionCategory.GROCERIES
             text.contains("electric") || text.contains("water bill") || text.contains("wifi") || text.contains("internet") || text.contains("utility") || text.contains("utilities") || text.contains("power") || text.contains("gas bill") || text.contains("recharge") || text.contains("airtel") || text.contains("jio") || text.contains("bsnl") || text.contains("electricity") || text.contains("bill") -> TransactionCategory.UTILITIES
             text.contains("uber") || text.contains("lyft") || text.contains("gas") || text.contains("fuel") || text.contains("metro") || text.contains("transit") || text.contains("subway") || text.contains("bus") || text.contains("train") || text.contains("parking") || text.contains("ola") || text.contains("rapido") || text.contains("rickshaw") || text.contains("petrol") || text.contains("diesel") -> TransactionCategory.TRANSPORTATION
             text.contains("doctor") || text.contains("pharmacy") || text.contains("medicine") || text.contains("hospital") || text.contains("dental") || text.contains("health") -> TransactionCategory.HEALTHCARE

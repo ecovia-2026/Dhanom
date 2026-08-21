@@ -10,7 +10,7 @@
 
     <application
         android:name=".DhanomApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:hardwareAccelerated="true"
         android:largeHeap="true"
         android:extractNativeLibs="true"

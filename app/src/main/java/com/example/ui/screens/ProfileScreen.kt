@@ -267,7 +267,7 @@ fun ProfileScreen(
                         Text("Cloud Brain (most accurate)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = palette.accent)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("Gemma 4 on-phone is a 4B model — great offline, not ChatGPT-class. For critical money decisions turn this ON and paste a FREE key (Groq Llama 3.3 70B is fastest). Gemma stays as the offline fallback. Keys: groq.com/keys · aistudio.google.com/apikey · openrouter.ai/keys", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
+                    Text("Paste your API key here for fast, ChatGPT-class advice. Your ledger, PAN, SMS, chat, files and Gemma model NEVER leave this phone — the cloud only receives the current question (PAN/account digits stripped). Totals are always calculated on-device. Keys: groq.com/keys · aistudio.google.com/apikey · openrouter.ai/keys", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Switch(checked = cloudEnabled, onCheckedChange = { cloudEnabled = it; onSaveAi(currentSettings()) })
@@ -383,8 +383,8 @@ fun ProfileScreen(
         item {
             Surface(shape = RoundedCornerShape(24.dp), color = palette.surfaceVariant, border = BorderStroke(1.dp, palette.border)) {
                 Column(Modifier.padding(18.dp)) {
-                    Text("Dhan-OM v1.1", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = palette.accent)
-                    Text("Offline-first personal finance AI · 100% on-device data", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
+                    Text("Dhan-OM v1.4", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = palette.accent)
+                    Text("Private by default · ledger never uploaded · speak any language", style = MaterialTheme.typography.bodySmall, color = palette.secondaryText)
                 }
             }
         }

@@ -83,14 +83,20 @@ class DhanomAiService {
             return@withContext DhanomAiResponse(it, null, "local")
         }
 
-        val systemPrompt = buildSystemPrompt(currentTransactions, currentBudgets, currentGoals, summary)
+        val safeQuestion = com.example.domain.privacy.PrivacyGuard.sanitizeOutgoingQuestion(userMessage)
 
-        // 3) Cloud brain first (highest accuracy) when configured.
+        // 3) Cloud brain — question only. Ledger / PAN / SMS / chat / memories
+        // never leave the device.
         if (cloudGenerate != null) {
             try {
-                val reply = cloudGenerate(systemPrompt + "\n\nUSER: " + userMessage)
-                if (!reply.isNullOrBlank()) {
-                    return@withContext DhanomAiResponse(reply.trim(), null, "cloud")
+                val sys = com.example.domain.privacy.PrivacyGuard.cloudSystemPrompt()
+                if (com.example.domain.privacy.PrivacyGuard.isSafeForCloud(sys) &&
+                    com.example.domain.privacy.PrivacyGuard.isSafeForCloud(safeQuestion)
+                ) {
+                    val reply = cloudGenerate(sys)
+                    if (!reply.isNullOrBlank()) {
+                        return@withContext DhanomAiResponse(reply.trim(), null, "cloud")
+                    }
                 }
             } catch (_: Exception) { /* fall back */ }
         }
@@ -124,47 +130,14 @@ class DhanomAiService {
         return lower.trim().split(Regex("\\s+")).size > 14
     }
 
-    private fun buildSystemPrompt(
-        transactions: List<TransactionEntity>,
-        budgets: List<BudgetEntity>,
-        goals: List<GoalEntity>,
-        summary: com.example.domain.analytics.CashFlowSummary
-    ): String {
-        val topCategories = FinancialAnalyticsEngine.calculateCategoryBreakdown(transactions).take(5)
-            .joinToString { "${it.category.displayName}: ₹${String.format(Locale.US, "%.0f", it.amount)}" }
-        val recentTx = transactions.take(6)
-            .joinToString("\n") { "- ${it.title} (${it.category.displayName}): ₹${String.format(Locale.US, "%.0f", it.amount)}" }
-        val goalsText = goals.take(6)
-            .joinToString("\n") { "- ${it.title}: ${String.format(Locale.US, "%.0f", it.currentAmount)} / ${String.format(Locale.US, "%.0f", it.targetAmount)}" }
-
-        return """
-You are Dhan-OM, a precise personal finance AI. Give accurate, concise answers (2-5 sentences unless detail is requested). Always use ₹ (INR). Understand Hinglish and Indian number words ("20 lacs" = 2,000,000; "62,000" = 62000; "1.5 lakh" = 150000). Never invent numbers — use the user's real data below.
-
-REAL DATA:
-- Inflow ₹${String.format(Locale.US, "%.0f", summary.totalInflow)} | Outflow ₹${String.format(Locale.US, "%.0f", summary.totalOutflow)} | Net ₹${String.format(Locale.US, "%.0f", summary.netCashFlow)}
-- Savings rate ${summary.savingsRate.toInt()}% | Health ${summary.healthScore}/100 (${summary.healthGrade})
-- Top categories: $topCategories
-- Goals: $goalsText
-- Recent:
-$recentTx
-
-ACTIONS: when the user explicitly asks to record/change data, after your reply output each action on its own line as single-line JSON:
-{"action":"add_expense","amount":450,"merchant":"Swiggy","category":"dining"}
-{"action":"add_income","amount":62000,"merchant":"Salary","category":"salary"}
-{"action":"add_goal","title":"Save 20 lakh","amount":2000000,"days":365}
-{"action":"set_budget","category":"groceries","limit":8000}
-{"action":"delete_last":true} or {"action":"delete_all":true}
-Categories: housing, groceries, utilities, transportation, healthcare, dining, entertainment, shopping, travel, education, investment, insurance, tax, mutual_fund, gold, crypto, subscriptions, gifts, other. Income: salary, freelance, dividend.
-For pure questions output NO JSON.
-""".trimIndent()
-    }
-
     /** Curated answers for greetings, small talk, and meta questions. */
     private fun handleSmallTalk(message: String): String? {
         val m = message.lowercase().trim()
-        if (m in listOf("hi", "hello", "hey", "hii", "namaste", "namaskar", "hola") ||
+        if (m in listOf("hi", "hello", "hey", "hii", "namaste", "namaskar", "hola",
+                "vanakkam", "namaskar", "sat sri akal", "assalamualaikum", "adaab") ||
             m.startsWith("hi ") || m.startsWith("hello ") || m.startsWith("hey ") ||
-            m == "good morning" || m == "good afternoon" || m == "good evening") {
+            m == "good morning" || m == "good afternoon" || m == "good evening" ||
+            m == "सुप्रभात" || m == "नमस्ते" || m == "नमस्कार") {
             return "Namaste 🙏 I'm Dhan-OM, your personal finance AI.\n\nYou can tell me things like:\n• \"Spent ₹450 on Swiggy\"\n• \"Add income 50000 salary\"\n• \"Delete my last transaction\"\n• \"How much did I spend on dining this month?\"\n\nHow can I help you today?"
         }
         if (m.contains("who are you") || m.contains("what can you do") || m.contains("help")) {
@@ -183,8 +156,8 @@ For pure questions output NO JSON.
     }
 
     private fun compactGemmaPrompt(summary: com.example.domain.analytics.CashFlowSummary): String =
-        "You are Dhan-OM. Answer in 2-4 short sentences using ₹. Never invent numbers. " +
-            "Snapshot: inflow ₹${summary.totalInflow.toInt()} outflow ₹${summary.totalOutflow.toInt()} " +
+        "You are Dhan-OM. Reply in the user's language. 2-4 short sentences using ₹. Never invent numbers. " +
+            "On-device snapshot only: inflow ₹${summary.totalInflow.toInt()} outflow ₹${summary.totalOutflow.toInt()} " +
             "net ₹${summary.netCashFlow.toInt()} savings ${summary.savingsRate.toInt()}%."
 
     companion object {
