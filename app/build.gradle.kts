@@ -25,31 +25,14 @@ val geminiApiKey: String = System.getenv("GEMINI_API_KEY")
 
 android {
   namespace = "com.example"
-  compileSdk { version = release(36) }
-
-  // Use AGP's well-known Android debug certificate (every phone accepts it)
-  // and FORCE v1 JAR signing. AGP skips v1 when minSdk>=24; Xiaomi/Vivo/Oppo/
-  // Realme/Samsung then show "App not installed" / "blocked for security".
-  // The previous OpenSSL PKCS12 key produced a signature some OEMs reject.
-  signingConfigs {
-    getByName("debug") {
-      enableV1Signing = true
-      enableV2Signing = true
-      enableV3Signing = true
-    }
-  }
+  compileSdk { version = release(34) }
 
   defaultConfig {
-    // New applicationId so this installs even if an older Dhan-OM (different
-    // signature) is stuck on the phone. It will appear as a fresh app.
-    applicationId = "com.dhanom.finance"
+    applicationId = "com.dhanom.ai"
     minSdk = 24
-    // 34 = widest sideload compatibility. 16 KB phones still install a
-    // Kotlin-only APK (no native .so). Targeting 35+ + LiteRT 4 KB .so is
-    // what made every previous build show "App not installed".
     targetSdk = 34
-    versionCode = 8
-    versionName = "1.8"
+    versionCode = 9
+    versionName = "1.9"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -67,11 +50,10 @@ android {
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("debug")
     }
-    // Match the 64 MB APK that DID install: default debug, v1+v2+v3, all ABIs.
     debug {
+      isDebuggable = false
       isMinifyEnabled = false
       isCrunchPngs = false
-      signingConfig = signingConfigs.getByName("debug")
     }
   }
   compileOptions {
@@ -86,14 +68,6 @@ android {
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
-  }
-  packaging {
-    jniLibs {
-      // Uncompressed + 16 KB ZIP-aligned (AGP 8.5.1+). Do NOT enable
-      // useLegacyPackaging / abiFilters — those produced the 22 MB APK that
-      // failed to install.
-      useLegacyPackaging = false
-    }
   }
 }
 
@@ -144,8 +118,7 @@ dependencies {
   androidTestImplementation(libs.androidx.espresso.core)
   androidTestImplementation(libs.androidx.junit)
   androidTestImplementation(libs.androidx.runner)
-  debugImplementation(libs.androidx.compose.ui.test.manifest)
-  debugImplementation(libs.androidx.compose.ui.tooling)
+
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
