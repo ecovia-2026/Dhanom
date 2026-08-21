@@ -67,6 +67,16 @@ class FinanceTypeConverters {
     }
 
     @TypeConverter
+    fun fromLoanType(type: LoanType): String = type.name
+
+    @TypeConverter
+    fun toLoanType(value: String): LoanType = try {
+        LoanType.valueOf(value)
+    } catch (e: Exception) {
+        LoanType.LOAN
+    }
+
+    @TypeConverter
     fun fromInvestmentRegion(region: InvestmentRegion): String = region.name
 
     @TypeConverter
@@ -84,9 +94,10 @@ class FinanceTypeConverters {
         GoalEntity::class,
         BrainMemoryEntity::class,
         ChatMessageEntity::class,
-        PortfolioHoldingEntity::class
+        PortfolioHoldingEntity::class,
+        LoanEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(FinanceTypeConverters::class)
@@ -97,10 +108,29 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun brainMemoryDao(): BrainMemoryDao
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun portfolioDao(): PortfolioDao
+    abstract fun loanDao(): LoanDao
 
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        /** v2 -> v3: adds the loans table (preserves existing data). */
+        private val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS loans (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "title TEXT NOT NULL, " +
+                    "type TEXT NOT NULL, " +
+                    "principalAmount REAL NOT NULL, " +
+                    "outstandingAmount REAL NOT NULL, " +
+                    "interestRate REAL NOT NULL, " +
+                    "monthlyEmi REAL NOT NULL, " +
+                    "notes TEXT NOT NULL, " +
+                    "timestamp INTEGER NOT NULL)"
+                )
+            }
+        }
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -109,6 +139,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dhanom_finance_database"
                 )
+                    .addMigrations(MIGRATION_2_3)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance

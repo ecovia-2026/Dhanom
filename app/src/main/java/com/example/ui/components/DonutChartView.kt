@@ -118,7 +118,7 @@ fun CategoryDonutChartView(
                             val displayAmount = selectedCategory?.amount ?: totalExpense
                             val displayLabel = selectedCategory?.category?.displayName ?: "Total Spent"
                             Text(
-                                text = "$${String.format(Locale.US, "%.0f", displayAmount)}",
+                                text = "₹${String.format(Locale.US, "%.0f", displayAmount)}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface

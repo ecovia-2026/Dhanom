@@ -11,7 +11,8 @@ class FinanceRepository(
     private val goalDao: GoalDao,
     private val brainMemoryDao: BrainMemoryDao,
     private val chatMessageDao: ChatMessageDao,
-    private val portfolioDao: PortfolioDao
+    private val portfolioDao: PortfolioDao,
+    private val loanDao: LoanDao
 ) {
     val allTransactions: Flow<List<TransactionEntity>> = transactionDao.getAllTransactions()
     val allBudgets: Flow<List<BudgetEntity>> = budgetDao.getAllBudgets()
@@ -19,6 +20,7 @@ class FinanceRepository(
     val allMemories: Flow<List<BrainMemoryEntity>> = brainMemoryDao.getAllMemories()
     val chatMessages: Flow<List<ChatMessageEntity>> = chatMessageDao.getAllMessages()
     val allHoldings: Flow<List<PortfolioHoldingEntity>> = portfolioDao.getAllHoldings()
+    val allLoans: Flow<List<LoanEntity>> = loanDao.getAllLoans()
 
     suspend fun insertTransaction(transaction: TransactionEntity): Long =
         transactionDao.insertTransaction(transaction)
@@ -86,7 +88,37 @@ class FinanceRepository(
     suspend fun clearHoldings() =
         portfolioDao.clearAllHoldings()
 
-    suspend fun checkAndSeedInitialData() {
+    suspend fun insertLoan(loan: LoanEntity): Long = loanDao.insertLoan(loan)
+    suspend fun updateLoan(loan: LoanEntity) = loanDao.updateLoan(loan)
+    suspend fun deleteLoan(loan: LoanEntity) = loanDao.deleteLoan(loan)
+    suspend fun clearLoans() = loanDao.clearAllLoans()
+
+    /** First-run onboarding: insert the welcome assistant message only (NO fake data). */
+    suspend fun onboardIfNeeded() {
+        if (chatMessageDao.getRecentMessages(1).isEmpty()) {
+            chatMessageDao.insertMessage(
+                ChatMessageEntity(
+                    sender = MessageSender.DHANOM_AI,
+                    messageText = "🙏 Welcome to Dhan-OM, your personal AI.\n\nI run an on-device Gemma 4 E4B brain — no cloud needed. Try:\n\n• \"Spent ₹450 on Swiggy\"\n• \"Add income 50000 salary\"\n• \"Delete my last transaction\"\n• \"Set budget 8000 groceries\"\n• \"Show my spending on dining\"\n\nTip: if my brain isn't downloaded yet, accept the download prompt (or go to Profile → AI Brain) and every answer becomes real AI reasoning.",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    /** Wipe all local finance data (explicit user action only). */
+    suspend fun clearAllData() {
+        transactionDao.clearAllTransactions()
+        budgetDao.clearAllBudgets()
+        goalDao.clearAllGoals()
+        brainMemoryDao.clearAllMemories()
+        chatMessageDao.clearChatHistory()
+        portfolioDao.clearAllHoldings()
+        loanDao.clearAllLoans()
+    }
+
+    /** Explicitly load rich demo/sample data (only when the user asks for it). */
+    suspend fun seedSampleData() {
         val count = transactionDao.getTransactionCount()
         if (count == 0) {
             val now = System.currentTimeMillis()
@@ -448,7 +480,7 @@ class FinanceRepository(
             chatMessageDao.insertMessage(
                 ChatMessageEntity(
                     sender = MessageSender.DHANOM_AI,
-                    messageText = "Namaste! I am Dhanom, your personal finance AI. I track your cash flows, investments, budgets, and spending habits locally and securely on your device. You can say things like 'Spent ₹500 on Swiggy', 'Show cash flow chart', 'How is my portfolio doing?', or ask for financial advice anytime!",
+                    messageText = "Namaste! I am Dhan-OM, your personal finance AI. This is demo data you chose to load — clear it anytime from Profile → Clear All Data.",
                     timestamp = now
                 )
             )

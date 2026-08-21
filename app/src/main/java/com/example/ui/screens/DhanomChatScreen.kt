@@ -1,6 +1,14 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,11 +30,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.example.data.model.BrainMemoryEntity
 import com.example.data.model.ChatMessageEntity
 import com.example.data.model.MessageSender
@@ -42,17 +54,88 @@ fun DhanomChatScreen(
     memories: List<BrainMemoryEntity>,
     insights: List<PersonalizedFinancialInsight> = emptyList(),
     isChatLoading: Boolean,
-    enableInternetKnowledge: Boolean,
-    onToggleInternetKnowledge: () -> Unit,
+    aiMode: String = "offline",
+    thinkingStage: String = "",
+    uploadStatus: com.example.ui.viewmodel.FinanceViewModel.UploadStatus? = null,
     onSendMessage: (String) -> Unit,
+    onAttachFile: (Uri) -> Unit,
+    onQuickAdd: () -> Unit,
+    onDeleteLast: () -> Unit,
     onClearChat: () -> Unit,
     onRefreshBrain: () -> Unit,
     onClearBrain: () -> Unit,
+    chatDraft: String = "",
+    onDraftChange: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var inputText by remember { mutableStateOf("") }
     var selectedSubTab by remember { mutableStateOf(0) } // 0 = Chat, 1 = ML Brain Inspector
     val listState = rememberLazyListState()
+    val inputText = chatDraft
+
+    val speechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+        val spoken = matches?.firstOrNull()?.trim()
+        if (!spoken.isNullOrBlank()) {
+            onSendMessage(spoken)
+        }
+    }
+
+    val documentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { onAttachFile(it) }
+    }
+
+    val fileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { onAttachFile(it) }
+    }
+
+    val photoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { onAttachFile(it) }
+    }
+
+    fun launchAnyFilePicker() {
+        try {
+            documentLauncher.launch(arrayOf("*/*"))
+        } catch (_: Exception) {
+            try {
+                fileLauncher.launch("*/*")
+            } catch (_: Exception) {
+                try {
+                    photoLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                } catch (_: Exception) { }
+            }
+        }
+    }
+
+    fun launchImagePicker() {
+        try {
+            photoLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        } catch (_: Exception) {
+            try {
+                fileLauncher.launch("image/*")
+            } catch (_: Exception) {
+                launchAnyFilePicker()
+            }
+        }
+    }
+
+    fun sendDraft() {
+        if (inputText.isNotBlank()) {
+            onSendMessage(inputText)
+            onDraftChange("")
+        }
+    }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -95,7 +178,7 @@ fun DhanomChatScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Dhanom AI Assistant",
+                                text = "Dhan-OM Assistant",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = BentoCardText
@@ -105,11 +188,15 @@ fun DhanomChatScreen(
                                     modifier = Modifier
                                         .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(if (enableInternetKnowledge) BentoPositiveGreen else Color(0xFF9E9E9E))
+                                        .background(if (aiMode == "gemma" || aiMode == "cloud") BentoPositiveGreen else Color(0xFF9E9E9E))
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (enableInternetKnowledge) "Internet Knowledge Active" else "On-Device ML (Encrypted Offline)",
+                                    text = when (aiMode) {
+                                        "cloud" -> "Cloud Brain (most accurate)"
+                                        "gemma" -> "Gemma 4 E4B (on-device)"
+                                        else -> "Gemma 4 E4B (on-device)"
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = BentoSecondaryText
                                 )
@@ -118,13 +205,6 @@ fun DhanomChatScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onToggleInternetKnowledge) {
-                            Icon(
-                                imageVector = if (enableInternetKnowledge) Icons.Default.Public else Icons.Default.PublicOff,
-                                contentDescription = "Toggle Internet Knowledge",
-                                tint = if (enableInternetKnowledge) BentoPrimaryPurple else BentoSecondaryText
-                            )
-                        }
                         IconButton(onClick = onClearChat) {
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
@@ -181,16 +261,21 @@ fun DhanomChatScreen(
                             modifier = Modifier.padding(start = 12.dp, top = 4.dp)
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp,
                                 color = BentoDeepPurple
                             )
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Dhanom is analyzing cash flows & learning patterns...",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = BentoSecondaryText
-                            )
+                            androidx.compose.animation.AnimatedContent(
+                                targetState = thinkingStage.ifBlank { "Thinking…" },
+                                label = "thinking"
+                            ) { stage ->
+                                Text(
+                                    text = stage,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = BentoSecondaryText
+                                )
+                            }
                         }
                     }
                 }
@@ -203,6 +288,18 @@ fun DhanomChatScreen(
                     .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                item {
+                    SuggestionChip(
+                        onClick = onQuickAdd,
+                        label = { Text("+ Log expense") }
+                    )
+                }
+                item {
+                    SuggestionChip(
+                        onClick = onDeleteLast,
+                        label = { Text("− Delete last") }
+                    )
+                }
                 item {
                     SuggestionChip(
                         onClick = { onSendMessage("Show me my spending last month") },
@@ -241,6 +338,26 @@ fun DhanomChatScreen(
                 }
             }
 
+            // Upload status (Claude-style file state)
+            uploadStatus?.let { up ->
+                Surface(
+                    color = BentoSurfaceLight,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
+                ) {
+                    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (up.state.startsWith("Done")) Icons.Default.CheckCircle else if (up.state.startsWith("Failed")) Icons.Default.Error else Icons.Default.UploadFile,
+                            contentDescription = null,
+                            tint = if (up.state.startsWith("Done")) BentoActiveGreen else if (up.state.startsWith("Failed")) BentoExpenseRed else BentoPrimaryPurple,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("${up.name} · ${up.state}", style = MaterialTheme.typography.labelSmall, color = BentoSecondaryText, maxLines = 1)
+                    }
+                }
+            }
+
             // Chat Input Bar
             Surface(
                 color = MaterialTheme.colorScheme.surface,
@@ -255,31 +372,70 @@ fun DhanomChatScreen(
                 ) {
                     OutlinedTextField(
                         value = inputText,
-                        onValueChange = { inputText = it },
-                        placeholder = { Text("Ask Dhanom or log transactions...") },
+                        onValueChange = onDraftChange,
+                        placeholder = { Text("Ask Dhan-OM or log transactions...") },
                         modifier = Modifier
                             .weight(1f)
                             .testTag("chat_input_field"),
                         shape = RoundedCornerShape(24.dp),
                         maxLines = 3,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = {
-                            if (inputText.isNotBlank()) {
-                                onSendMessage(inputText)
-                                inputText = ""
-                            }
-                        })
+                        keyboardActions = KeyboardActions(onSend = { sendDraft() })
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
 
                     IconButton(
+                        onClick = { launchImagePicker() },
+                        modifier = Modifier.size(40.dp).testTag("chat_image_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = "Attach image",
+                            tint = BentoPrimaryPurple
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { launchAnyFilePicker() },
+                        modifier = Modifier.size(40.dp).testTag("chat_attach_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AttachFile,
+                            contentDescription = "Attach file (any type, up to 500 MB)",
+                            tint = BentoPrimaryPurple
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    IconButton(
                         onClick = {
-                            if (inputText.isNotBlank()) {
-                                onSendMessage(inputText)
-                                inputText = ""
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
+                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Talk to Dhan-OM…")
+                            }
+                            try {
+                                speechLauncher.launch(intent)
+                            } catch (e: Exception) {
+                                // No speech recognizer on device — fall back to typing.
                             }
                         },
+                        modifier = Modifier.size(40.dp),
+                        enabled = true
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Speak",
+                            tint = BentoPrimaryPurple
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    IconButton(
+                        onClick = { sendDraft() },
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
@@ -334,7 +490,7 @@ fun DhanomChatScreen(
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Dhanom continuously runs Bayesian categorization, time-series burn rate forecasting, recurring periodicity analysis, and Z-score outlier detection completely offline on your device.",
+                                text = "Dhan-OM continuously runs Bayesian categorization, time-series burn rate forecasting, recurring periodicity analysis, and Z-score outlier detection completely offline on your device.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = BentoCardText
                             )
@@ -397,7 +553,7 @@ fun DhanomChatScreen(
                         }
                     }
                 } else {
-                    items(memories, key = { it.id }) { mem ->
+                    items(memories.distinctBy { it.topic }, key = { it.id }) { mem ->
                         BrainMemoryCard(memory = mem)
                     }
                 }
@@ -610,5 +766,37 @@ fun BrainMemoryCard(memory: BrainMemoryEntity) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AttachmentImage(path: String?) {
+    if (path.isNullOrBlank()) return
+    val bitmap by produceState<android.graphics.Bitmap?>(initialValue = null, key1 = path) {
+        value = withContext(Dispatchers.IO) {
+            try {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(path, bounds)
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
+                var sample = 1
+                val max = 720
+                while (bounds.outWidth / sample > max || bounds.outHeight / sample > max) sample *= 2
+                BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+            } catch (_: Throwable) {
+                null
+            }
+        }
+    }
+    val bmp = bitmap
+    if (bmp != null) {
+        Image(
+            bitmap = bmp.asImageBitmap(),
+            contentDescription = "Attached image",
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 220.dp)
+                .clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop
+        )
     }
 }

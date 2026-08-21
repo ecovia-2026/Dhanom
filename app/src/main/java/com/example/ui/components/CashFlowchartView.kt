@@ -267,7 +267,7 @@ fun CashFlowchartView(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "${node.subtitle} • Represents ${String.format(Locale.US, "%.1f", node.percentageOfInflow)}% of total monthly inflows ($${String.format(Locale.US, "%.2f", node.amount)})",
+                                    text = "${node.subtitle} • Represents ${String.format(Locale.US, "%.1f", node.percentageOfInflow)}% of total monthly inflows (₹${String.format(Locale.US, "%.2f", node.amount)})",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -332,7 +332,7 @@ fun FlowchartNodeCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "$${String.format(Locale.US, "%.2f", node.amount)}",
+                text = "₹${String.format(Locale.US, "%.2f", node.amount)}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = node.color
@@ -383,7 +383,7 @@ fun FlowchartCategoryRow(
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "$${String.format(Locale.US, "%.2f", node.amount)}",
+                text = "₹${String.format(Locale.US, "%.2f", node.amount)}",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface

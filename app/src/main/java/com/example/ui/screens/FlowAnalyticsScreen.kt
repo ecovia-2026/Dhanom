@@ -153,7 +153,7 @@ fun FlowAnalyticsScreen(
                                 modifier = Modifier.weight(0.7f)
                             )
                             Text(
-                                text = "$${String.format(Locale.US, "%.2f", exp.amount)}",
+                                text = "₹${String.format(Locale.US, "%.2f", exp.amount)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = BentoOnBackgroundLight,

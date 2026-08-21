@@ -153,3 +153,21 @@ interface PortfolioDao {
     @Query("DELETE FROM portfolio_holdings")
     suspend fun clearAllHoldings()
 }
+
+@Dao
+interface LoanDao {
+    @Query("SELECT * FROM loans ORDER BY outstandingAmount DESC")
+    fun getAllLoans(): Flow<List<LoanEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLoan(loan: LoanEntity): Long
+
+    @Update
+    suspend fun updateLoan(loan: LoanEntity)
+
+    @Delete
+    suspend fun deleteLoan(loan: LoanEntity)
+
+    @Query("DELETE FROM loans")
+    suspend fun clearAllLoans()
+}

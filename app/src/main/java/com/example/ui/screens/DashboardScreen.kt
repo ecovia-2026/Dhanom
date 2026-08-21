@@ -20,11 +20,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.GoalEntity
+import com.example.data.model.LoanEntity
+import com.example.data.model.PortfolioHoldingEntity
 import com.example.data.model.TransactionEntity
 import com.example.data.model.TransactionType
 import com.example.domain.ai.DailySuggestion
@@ -45,6 +53,9 @@ fun DashboardScreen(
     categoryExpenses: List<CategoryExpense>,
     recentTransactions: List<TransactionEntity>,
     dailySuggestions: List<DailySuggestion> = emptyList(),
+    loans: List<LoanEntity> = emptyList(),
+    holdings: List<PortfolioHoldingEntity> = emptyList(),
+    goals: List<GoalEntity> = emptyList(),
     onNavigateTab: (FinanceTab) -> Unit,
     onAddTransactionClick: () -> Unit,
     onTransactionClick: (TransactionEntity) -> Unit,
@@ -61,6 +72,16 @@ fun DashboardScreen(
         // Bento Item 1: App Header Profile & Status
         item {
             BentoHeaderStatus()
+        }
+
+        // Money snapshot: circle chart + quick menu (savings / investments / loans / share market)
+        item {
+            MoneySnapshotCard(
+                goals = goals,
+                holdings = holdings,
+                loans = loans,
+                onNavigateTab = onNavigateTab
+            )
         }
 
         // Bento Item 2: Intelligence Insight Bento Card
@@ -194,7 +215,7 @@ fun BentoHeaderStatus() {
     ) {
         Column {
             Text(
-                text = "Dhanom AI",
+                text = "Dhan-OM",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = BentoDeepPurple
@@ -309,7 +330,7 @@ fun BentoIntelligenceInsightCard(
                     shape = RoundedCornerShape(20.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                 ) {
-                    Text(text = "Chat with Dhanom", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Text(text = "Chat with Dhan-OM", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 }
 
                 FilledTonalButton(
@@ -356,7 +377,7 @@ fun BentoNetBalanceCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "$${String.format(Locale.US, "%,.2f", summary.netCashFlow)}",
+                text = "₹${String.format(Locale.US, "%,.2f", summary.netCashFlow)}",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Light,
                 color = BentoDeepPurple,
@@ -680,7 +701,7 @@ private fun BentoAllocationLegend(
             )
         }
         Text(
-            text = "$${String.format(Locale.US, "%,.0f", amount)}",
+            text = "₹${String.format(Locale.US, "%,.0f", amount)}",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             color = BentoDeepPurple
@@ -748,7 +769,7 @@ fun BentoTransactionRowItem(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${if (isIncome) "+" else "-"}$${String.format(Locale.US, "%.2f", transaction.amount)}",
+                    text = "${if (isIncome) "+" else "-"}₹${String.format(Locale.US, "%.2f", transaction.amount)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (isIncome) BentoActiveGreen else BentoDeepPurple
@@ -836,6 +857,109 @@ fun DailySuggestionsCard(suggestions: List<DailySuggestion>) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MoneySnapshotCard(
+    goals: List<GoalEntity>,
+    holdings: List<PortfolioHoldingEntity>,
+    loans: List<LoanEntity>,
+    onNavigateTab: (FinanceTab) -> Unit
+) {
+    val palette = LocalAppPalette.current
+    val savings = goals.filter { !it.isCompleted }.sumOf { it.currentAmount }
+    val investments = holdings.sumOf { it.currentValue }
+    val borrowed = loans.filter { it.type == com.example.data.model.LoanType.LOAN }.sumOf { it.outstandingAmount }
+    val debts = loans.filter { it.type == com.example.data.model.LoanType.DEBT }.sumOf { it.outstandingAmount }
+
+    val segments = listOf(
+        Triple("Savings", savings, Color(0xFF2E7D32)),
+        Triple("Investments", investments, Color(0xFF0B6BCB)),
+        Triple("Loans", borrowed, Color(0xFFB45309)),
+        Triple("Debts", debts, Color(0xFFD32F2F))
+    )
+    val total = segments.sumOf { it.second }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, palette.border)
+    ) {
+        Column(Modifier.padding(18.dp)) {
+            Text("Money Snapshot", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = palette.accent)
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(140.dp), contentAlignment = Alignment.Center) {
+                    Canvas(Modifier.size(140.dp)) {
+                        val stroke = Stroke(width = 26.dp.toPx(), cap = StrokeCap.Butt)
+                        var start = -90f
+                        segments.forEach { seg ->
+                            if (seg.second > 0 && total > 0) {
+                                val sweep = (seg.second / total * 360.0).toFloat()
+                                drawArc(color = seg.third, startAngle = start, sweepAngle = sweep, useCenter = false, style = stroke)
+                                start += sweep
+                            }
+                        }
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("₹${String.format(java.util.Locale.US, "%,.0f", total)}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = palette.accent)
+                        Text("Total", style = MaterialTheme.typography.labelSmall, color = palette.secondaryText)
+                    }
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    segments.forEach { seg ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(seg.third))
+                            Spacer(Modifier.width(8.dp))
+                            Text(seg.first, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                            Text("₹${String.format(java.util.Locale.US, "%,.0f", seg.second)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            // Quick menu under the chart
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                QuickMoneyChip("Savings", Icons.Default.Savings, Modifier.weight(1f)) { onNavigateTab(FinanceTab.BUDGETS_GOALS) }
+                QuickMoneyChip("Investments", Icons.Default.ShowChart, Modifier.weight(1f)) { onNavigateTab(FinanceTab.PORTFOLIO) }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                QuickMoneyChip("Loans & Debts", Icons.Default.AccountBalanceWallet, Modifier.weight(1f)) { onNavigateTab(FinanceTab.LOANS) }
+                QuickMoneyChip("Share Market", Icons.Default.CandlestickChart, Modifier.weight(1f)) { onNavigateTab(FinanceTab.PORTFOLIO) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickMoneyChip(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
+    val palette = LocalAppPalette.current
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = palette.primaryContainer
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = palette.onPrimaryContainer, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = palette.onPrimaryContainer,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
         }
     }
 }

@@ -319,6 +319,77 @@ object ExportManager {
         }
     }
 
+    /**
+     * Parses a Dhan-OM transactions CSV export back into entities.
+     * Header: Date,Title,Amount,Type,Category,Necessity,Account,Merchant,Currency,Notes
+     * Also tolerates a minimal "Title,Amount,Category" CSV.
+     */
+    fun parseTransactionsCsv(csv: String): List<TransactionEntity> {
+        val lines = csv.lines().map { it.trim() }.filter { it.isNotBlank() }
+        if (lines.isEmpty()) return emptyList()
+        val out = mutableListOf<TransactionEntity>()
+        var start = 0
+        if (lines[0].contains("Title") && lines[0].contains("Amount")) start = 1
+        for (line in lines.drop(start)) {
+            val cols = splitCsvLine(line)
+            if (cols.size < 3) continue
+            // Determine columns: if first column looks like a date (contains '-') and 2nd is title
+            val hasHeader = start == 1
+            val amount = when {
+                hasHeader && cols.size >= 3 -> cols[2].toDoubleOrNull()
+                else -> cols[1].toDoubleOrNull()
+            } ?: continue
+            if (hasHeader && cols.size >= 10) {
+                out.add(
+                    TransactionEntity(
+                        title = cols[1],
+                        amount = amount,
+                        type = runCatching { TransactionType.valueOf(cols[3].trim()) }.getOrDefault(TransactionType.EXPENSE),
+                        category = TransactionCategory.fromString(cols[4]),
+                        necessity = runCatching { ExpenseNecessity.valueOf(cols[5].trim()) }.getOrDefault(TransactionCategory.fromString(cols[4]).defaultNecessity),
+                        account = cols[6].ifBlank { "Main" },
+                        merchant = cols[7],
+                        notes = cols.getOrElse(9) { "" }
+                    )
+                )
+            } else {
+                out.add(
+                    TransactionEntity(
+                        title = cols[0],
+                        amount = amount,
+                        type = TransactionType.EXPENSE,
+                        category = TransactionCategory.fromString(cols.getOrElse(2) { "" }),
+                        necessity = TransactionCategory.fromString(cols.getOrElse(2) { "" }).defaultNecessity,
+                        account = "Main",
+                        merchant = ""
+                    )
+                )
+            }
+        }
+        return out
+    }
+
+    private fun splitCsvLine(line: String): List<String> {
+        val cols = mutableListOf<String>()
+        val cur = StringBuilder()
+        var inQuotes = false
+        var i = 0
+        while (i < line.length) {
+            val c = line[i]
+            when {
+                c == '"' -> {
+                    if (inQuotes && i + 1 < line.length && line[i + 1] == '"') { cur.append('"'); i++ }
+                    else inQuotes = !inQuotes
+                }
+                c == ',' && !inQuotes -> { cols.add(cur.toString()); cur.setLength(0) }
+                else -> cur.append(c)
+            }
+            i++
+        }
+        cols.add(cur.toString())
+        return cols
+    }
+
     private fun csvSafe(value: String): String {
         val needsQuoting = value.contains(',') || value.contains('"') || value.contains('\n')
         return if (needsQuoting) "\"${value.replace("\"", "\"\"")}\"" else value
@@ -331,7 +402,7 @@ object ExportManager {
         goals: List<GoalEntity>
     ): String {
         val sb = StringBuilder()
-        sb.append("BT\n/F1 16 Tf\n72 760 Td\n(Dhanom AI - Financial Report) Tj\nET\n")
+        sb.append("BT\n/F1 16 Tf\n72 760 Td\n(Dhan-OM - Financial Report) Tj\nET\n")
         sb.append("BT\n/F1 10 Tf\n72 740 Td\n(Generated: ${dateFormat.format(Date())}) Tj\nET\n\n")
 
         var y = 710

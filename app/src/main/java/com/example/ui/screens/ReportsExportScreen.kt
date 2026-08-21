@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,6 +45,26 @@ fun ReportsExportScreen(
 ) {
     val context = LocalContext.current
     var statusMessage by remember { mutableStateOf<String?>(null) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val json = context.contentResolver.openInputStream(it)
+                    ?.bufferedReader()
+                    ?.use { reader -> reader.readText() }
+                if (!json.isNullOrBlank()) {
+                    onImportBackup(json)
+                    statusMessage = "Importing backup from ${it.lastPathSegment ?: "file"}..."
+                } else {
+                    statusMessage = "Could not read the selected file."
+                }
+            } catch (e: Exception) {
+                statusMessage = "Import failed: ${e.message}"
+            }
+        }
+    }
 
     fun shareFile(file: java.io.File, mimeType: String) {
         try {
@@ -159,6 +182,20 @@ fun ReportsExportScreen(
                         Icon(Icons.Default.Backup, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Create & Share Full Backup")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            importLauncher.launch(
+                                arrayOf("application/json", "application/octet-stream", "text/plain", "*/*")
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("import_backup_button"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Import Backup From Device")
                     }
                 }
             }

@@ -497,11 +497,11 @@ object FinancialAnalyticsEngine {
                     BrainMemoryEntity(
                         memoryType = if (isCoffeeOrFood) MemoryType.HABIT_LEARNED else MemoryType.MERCHANT_PATTERN,
                         topic = "Regular at $merchantName",
-                        description = "Visited $merchantName ${list.size} times, averaging $${String.format(Locale.US, "%.2f", avgSpent)} per visit ($${String.format(Locale.US, "%.2f", totalSpent)} total).",
+                        description = "Visited $merchantName ${list.size} times, averaging ₹${String.format(Locale.US, "%.2f", avgSpent)} per visit (₹${String.format(Locale.US, "%.2f", totalSpent)} total).",
                         confidenceScore = min(0.99f, 0.75f + (list.size * 0.05f)),
                         detectedCount = list.size,
                         lastObservedAt = list.maxOf { it.timestamp },
-                        actionSuggestion = if (isCoffeeOrFood) "Small daily micro-purchases compound to $${String.format(Locale.US, "%.0f", totalSpent * 4)}/quarter. Automate a cap to save effortlessly." else "Track recurring transactions for $merchantName in your monthly budget."
+                        actionSuggestion = if (isCoffeeOrFood) "Small daily micro-purchases compound to ₹${String.format(Locale.US, "%.0f", totalSpent * 4)}/quarter. Automate a cap to save effortlessly." else "Track recurring transactions for $merchantName in your monthly budget."
                     )
                 )
             }
@@ -527,11 +527,11 @@ object FinancialAnalyticsEngine {
                 BrainMemoryEntity(
                     memoryType = MemoryType.SPENDING_SURGE,
                     topic = "Weekend Spending Surge",
-                    description = "Average weekend transaction ($${String.format(Locale.US, "%.2f", weekendAvg)}) is ${((weekendAvg / max(1.0, weekdayAvg) - 1.0) * 100).roundToInt()}% higher than weekday average.",
+                    description = "Average weekend transaction (₹${String.format(Locale.US, "%.2f", weekendAvg)}) is ${((weekendAvg / max(1.0, weekdayAvg) - 1.0) * 100).roundToInt()}% higher than weekday average.",
                     confidenceScore = 0.88f,
                     detectedCount = weekendTx.size,
                     lastObservedAt = now,
-                    actionSuggestion = "Set a dedicated 'Weekend Treat' envelope of $100 to prevent weekend blowout without feeling restricted."
+                    actionSuggestion = "Set a dedicated 'Weekend Treat' envelope of ₹100 to prevent weekend blowout without feeling restricted."
                 )
             )
         }
@@ -547,7 +547,7 @@ object FinancialAnalyticsEngine {
                     confidenceScore = 0.96f,
                     detectedCount = 1,
                     lastObservedAt = now,
-                    actionSuggestion = "Consider directing half of surplus cash buffer ($${String.format(Locale.US, "%.2f", max(0.0, summary.netCashFlow))}) into broad-market index funds."
+                    actionSuggestion = "Consider directing half of surplus cash buffer (₹${String.format(Locale.US, "%.2f", max(0.0, summary.netCashFlow))}) into broad-market index funds."
                 )
             )
         }

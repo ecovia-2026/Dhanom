@@ -181,3 +181,21 @@ data class PortfolioHoldingEntity(
     val unrealizedPnl: Double get() = currentValue - investedAmount
     val unrealizedPnlPercent: Double get() = if (investedAmount > 0) (unrealizedPnl / investedAmount) * 100.0 else 0.0
 }
+
+enum class LoanType(val displayName: String) {
+    LOAN("Loan (Borrowed)"),
+    DEBT("Debt (Owed)")
+}
+
+@Entity(tableName = "loans")
+data class LoanEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val type: LoanType = LoanType.LOAN,
+    val principalAmount: Double = 0.0,
+    val outstandingAmount: Double = 0.0,
+    val interestRate: Double = 0.0, // % per annum
+    val monthlyEmi: Double = 0.0,
+    val notes: String = "",
+    val timestamp: Long = System.currentTimeMillis()
+)

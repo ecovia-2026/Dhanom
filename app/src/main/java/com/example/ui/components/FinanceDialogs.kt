@@ -376,7 +376,7 @@ fun DepositGoalDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Current: $${String.format(Locale.US, "%.2f", goal.currentAmount)} / $${String.format(Locale.US, "%.2f", goal.targetAmount)}",
+                    text = "Current: ₹${String.format(Locale.US, "%.2f", goal.currentAmount)} / ₹${String.format(Locale.US, "%.2f", goal.targetAmount)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

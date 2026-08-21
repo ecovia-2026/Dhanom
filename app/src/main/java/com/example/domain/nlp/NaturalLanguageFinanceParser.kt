@@ -15,6 +15,11 @@ sealed class ParsedFinanceCommand {
         val confirmationMessage: String
     ) : ParsedFinanceCommand()
 
+    data class DeleteTransactionCommand(
+        val transactionsToDelete: List<TransactionEntity>,
+        val confirmationMessage: String
+    ) : ParsedFinanceCommand()
+
     data class SetBudgetCommand(
         val category: TransactionCategory,
         val limit: Double,
@@ -36,6 +41,13 @@ sealed class ParsedFinanceCommand {
         val responseText: String,
         val categoryBreakdown: Map<String, Double>? = null
     ) : ParsedFinanceCommand()
+
+    /** App-customization commands spoken in chat: THEME / SORT. */
+    data class CustomizeCommand(
+        val action: String, // "THEME" | "SORT"
+        val payload: String,
+        val message: String
+    ) : ParsedFinanceCommand()
 }
 
 /**
@@ -45,7 +57,7 @@ sealed class ParsedFinanceCommand {
  */
 object NaturalLanguageFinanceParser {
 
-    private val AMOUNT_PATTERN = Pattern.compile("(?i)(?:\\$|USD\\s*|INR\\s*|EUR\\s*)?(\\d+(?:\\.\\d{1,2})?)(?:\\s*(?:dollars|bucks|k|grand))?")
+    private val AMOUNT_PATTERN = Pattern.compile("(?i)(?:₹|\\$|USD\\s*|INR\\s*|EUR\\s*)?(\\d{1,3}(?:,\\d{3})+|\\d+(?:\\.\\d{1,2})?)(?:\\s*(?:dollars|bucks|k|grand|lakh|lakhs|lac|lacs|crore|crores))?")
 
     fun parseCommandWithContext(
         input: String,
@@ -85,18 +97,24 @@ object NaturalLanguageFinanceParser {
         if (lower.contains("habit") || lower.contains("spending pattern") || lower.contains("brain") || lower.contains("what did you learn") || lower.contains("my patterns") || lower.contains("insights")) {
             return ParsedFinanceCommand.ShowAnalyticsCommand(
                 targetTab = "HABITS",
-                responseMessage = "Here is what Dhanom AI Brain has learned about your spending patterns, recurring routines, and ML-detected optimizations."
+                responseMessage = "Here is what Dhan-OM Brain has learned about your spending patterns, recurring routines, and ML-detected optimizations."
             )
         }
+
+        // 4b. Delete / remove transactions by talking
+        parseDeleteCommand(trimmed, lower, transactions)?.let { return it }
+
+        // 4c. Customize the app by talking: change theme, sort ledger
+        parseCustomizeCommand(trimmed, lower)?.let { return it }
 
         // 5. Check for ML End-of-Month Forecast & Prediction Queries: "Predict my end of month balance", "Will I run out of money?", "Forecast"
         if (lower.contains("predict") || lower.contains("forecast") || lower.contains("run out of money") || lower.contains("end of month") || lower.contains("month end balance")) {
             val forecast = PersonalFinanceMlEngine.forecastMonthEndCashFlow(transactions)
             val response = buildString {
                 append("🔮 **End-of-Month Predictive Cash Forecast**:\n\n")
-                append("• **Current Burn Velocity**: $${String.format(Locale.US, "%.2f", forecast.dailyBurnRate)} / day (${forecast.daysPassedInMonth} of ${forecast.totalDaysInMonth} days passed).\n")
-                append("• **Projected Month-End Expenses**: $${String.format(Locale.US, "%,.2f", forecast.projectedMonthEndExpenses)}.\n")
-                append("• **Projected Net Savings**: $${String.format(Locale.US, "%,.2f", forecast.projectedMonthEndNetSavings)} (${forecast.projectedSavingsRate.toInt()}% savings rate).\n\n")
+                append("• **Current Burn Velocity**: ₹${String.format(Locale.US, "%.2f", forecast.dailyBurnRate)} / day (${forecast.daysPassedInMonth} of ${forecast.totalDaysInMonth} days passed).\n")
+                append("• **Projected Month-End Expenses**: ₹${String.format(Locale.US, "%,.2f", forecast.projectedMonthEndExpenses)}.\n")
+                append("• **Projected Net Savings**: ₹${String.format(Locale.US, "%,.2f", forecast.projectedMonthEndNetSavings)} (${forecast.projectedSavingsRate.toInt()}% savings rate).\n\n")
                 append(forecast.forecastSummary)
             }
             return ParsedFinanceCommand.QueryResponseCommand("PREDICTION", response)
@@ -112,8 +130,8 @@ object NaturalLanguageFinanceParser {
 
             val response = buildString {
                 append("📈 **Investment & Portfolio Performance**:\n\n")
-                append("• **Total Capital Invested**: $${String.format(Locale.US, "%,.2f", totalInvested)} across ${investments.size} allocations.\n")
-                append("• **Dividends & Capital Returns**: $${String.format(Locale.US, "%,.2f", totalReturns)}.\n")
+                append("• **Total Capital Invested**: ₹${String.format(Locale.US, "%,.2f", totalInvested)} across ${investments.size} allocations.\n")
+                append("• **Dividends & Capital Returns**: ₹${String.format(Locale.US, "%,.2f", totalReturns)}.\n")
                 if (totalInvested > 0) {
                     append("• **Realized Yield**: ${String.format(Locale.US, "%.2f", netReturnPct)}%.\n\n")
                 }
@@ -122,7 +140,7 @@ object NaturalLanguageFinanceParser {
             return ParsedFinanceCommand.QueryResponseCommand("INVESTMENTS", response)
         }
 
-        // 7. Check for Categorization Queries: "Categorize this transaction: Starbucks $6.50", "What category is Uber?"
+        // 7. Check for Categorization Queries: "Categorize this transaction: Starbucks ₹6.50", "What category is Uber?"
         if (lower.contains("categorize") || lower.contains("what category") || lower.contains("which category")) {
             val cleanSubject = trimmed.replace(Regex("(?i)(?:categorize|this transaction|what category is|which category is|for|\\:)"), "").trim()
             val amount = extractAmount(cleanSubject)
@@ -138,8 +156,8 @@ object NaturalLanguageFinanceParser {
             return ParsedFinanceCommand.QueryResponseCommand("CATEGORIZE", response)
         }
 
-        // 8. Check if this is an explicit expense logging command with an amount (e.g. "Spent $45 on groceries", "Paid 50 for dinner", "Bought coffee $6")
-        val isExplicitExpenseLog = (lower.startsWith("spent ") || lower.startsWith("paid ") || lower.startsWith("bought ") || lower.startsWith("charged ") || lower.startsWith("log ")) &&
+        // 8. Check if this is an explicit expense logging command with an amount (e.g. "Spent ₹45 on groceries", "Paid 50 for dinner", "Bought coffee ₹6")
+        val isExplicitExpenseLog = (lower.startsWith("spent ") || lower.startsWith("spend ") || lower.startsWith("paid ") || lower.startsWith("bought ") || lower.startsWith("charged ") || lower.startsWith("log ") || lower.startsWith("add expense") || lower.startsWith("expense ") || lower.startsWith("kharcha") || lower.startsWith("kharida") || lower.startsWith("kharch hua")) &&
                 AMOUNT_PATTERN.matcher(trimmed).find()
 
         // 9. Check for Temporal / Specific Spending Queries: "Show me my spending last month", "How much did I spend this week?", "What did I spend on groceries?"
@@ -155,7 +173,7 @@ object NaturalLanguageFinanceParser {
                 append("📊 **Financial Health Assessment**:\n\n")
                 append("• **Financial Health Score**: **${calcSummary.healthScore}/100** (Grade: **${calcSummary.healthGrade}**)\n")
                 append("• **Monthly Savings Rate**: **${String.format(Locale.US, "%.1f", calcSummary.savingsRate)}%** (Target: ≥20%)\n")
-                append("• **Net Cash Flow**: **$${String.format(Locale.US, "%,.2f", calcSummary.netCashFlow)}**\n")
+                append("• **Net Cash Flow**: **₹${String.format(Locale.US, "%,.2f", calcSummary.netCashFlow)}**\n")
                 append("• **Needs / Wants / Savings**: ${calcSummary.needsPercentage.toInt()}% / ${calcSummary.wantsPercentage.toInt()}% / ${calcSummary.savingsPercentage.toInt()}%\n\n")
                 append("💡 ${calcSummary.healthSummary}")
             }
@@ -173,7 +191,7 @@ object NaturalLanguageFinanceParser {
                     append("🎯 **Goal Completion Projections**:\n\n")
                     projections.forEach { p ->
                         val pct = if (p.targetAmount > 0) ((p.currentAmount / p.targetAmount) * 100).toInt() else 0
-                        append("• **${p.goalTitle}**: $${String.format(Locale.US, "%,.0f", p.currentAmount)} / $${String.format(Locale.US, "%,.0f", p.targetAmount)} ($pct%)\n")
+                        append("• **${p.goalTitle}**: ₹${String.format(Locale.US, "%,.0f", p.currentAmount)} / ₹${String.format(Locale.US, "%,.0f", p.targetAmount)} ($pct%)\n")
                         append("  - Projected Completion: **${p.projectedCompletionDate}** (${p.projectedDaysToComplete} days)\n")
                         append("  - ${p.recommendation}\n\n")
                     }
@@ -190,7 +208,7 @@ object NaturalLanguageFinanceParser {
                 return ParsedFinanceCommand.SetBudgetCommand(
                     category = category,
                     limit = amount,
-                    confirmationMessage = "Updated your monthly budget for ${category.displayName} to $${String.format(Locale.US, "%.2f", amount)}."
+                    confirmationMessage = "Updated your monthly budget for ${category.displayName} to ₹${String.format(Locale.US, "%.2f", amount)}."
                 )
             }
         }
@@ -207,13 +225,13 @@ object NaturalLanguageFinanceParser {
                         currentAmount = 0.0,
                         categoryTag = "Target"
                     ),
-                    confirmationMessage = "Created new financial goal '$title' with target amount of $${String.format(Locale.US, "%.2f", amount)}."
+                    confirmationMessage = "Created new financial goal '$title' with target amount of ₹${String.format(Locale.US, "%.2f", amount)}."
                 )
             }
         }
 
-        // 13. Check for Income Logging: "Salary 5000", "Received payment 450", "Freelance income $800"
-        val isIncome = lower.contains("salary") || lower.contains("income") || lower.contains("received") || lower.contains("got paid") || lower.contains("freelance") || lower.contains("dividend")
+        // 13. Check for Income Logging: "Salary 5000", "Received payment 450", "Freelance income ₹800"
+        val isIncome = lower.contains("salary") || lower.contains("income") || lower.contains("received") || lower.contains("got paid") || lower.contains("freelance") || lower.contains("dividend") || lower.contains("earned") || lower.contains("aaya") || lower.contains("aay") || lower.contains("kamai") || lower.contains("kamaya") || lower.contains("tankhwah")
         val amount = extractAmount(lower)
 
         if (isIncome && amount > 0) {
@@ -233,11 +251,11 @@ object NaturalLanguageFinanceParser {
                     account = "Main Checking",
                     merchant = extractMerchant(trimmed)
                 ),
-                confirmationMessage = "Logged income of $${String.format(Locale.US, "%.2f", amount)} under ${category.displayName}."
+                confirmationMessage = "Logged income of ₹${String.format(Locale.US, "%.2f", amount)} under ${category.displayName}."
             )
         }
 
-        // 14. Check for Expense Logging: "Spent $45 on groceries at Trader Joe's", "Coffee $6.50", "Paid rent 1400"
+        // 14. Check for Expense Logging: "Spent ₹45 on groceries at Trader Joe's", "Coffee ₹6.50", "Paid rent 1400"
         if (amount > 0) {
             val mlPredicted = PersonalFinanceMlEngine.predictCategory(trimmed, amount, transactions)
             val category = mlPredicted.category
@@ -254,7 +272,7 @@ object NaturalLanguageFinanceParser {
                     account = if (amount > 200) "Main Checking" else "Credit Card",
                     merchant = merchant.ifBlank { cleanTitle }
                 ),
-                confirmationMessage = "Logged expense of $${String.format(Locale.US, "%.2f", amount)} for '$cleanTitle' (${category.displayName}) [Confidence: ${(mlPredicted.confidence * 100).toInt()}%]."
+                confirmationMessage = "Logged expense of ₹${String.format(Locale.US, "%.2f", amount)} for '$cleanTitle' (${category.displayName}) [Confidence: ${(mlPredicted.confidence * 100).toInt()}%]."
             )
         }
 
@@ -267,6 +285,125 @@ object NaturalLanguageFinanceParser {
 
     fun parseCommand(input: String): ParsedFinanceCommand {
         return parseCommandWithContext(input)
+    }
+
+    private fun parseCustomizeCommand(trimmed: String, lower: String): ParsedFinanceCommand? {
+        // "change theme to ocean" / "apply emerald theme" / "switch to dark"
+        if (lower.contains("theme")) {
+            val themeWord = trimmed
+                .replace(Regex("(?i).*?theme"), "")
+                .replace(Regex("(?i)^\\s*(to|as)\\s*"), "")
+                .trim()
+                .lowercase()
+            if (themeWord.isNotBlank()) {
+                return ParsedFinanceCommand.CustomizeCommand(
+                    action = "THEME",
+                    payload = themeWord,
+                    message = "Applying theme: $themeWord"
+                )
+            }
+        }
+        // "sort ledger by amount" / "sort transactions newest first"
+        if (lower.contains("sort")) {
+            val payload = when {
+                lower.contains("amount") || lower.contains("highest") || lower.contains("lowest") -> "AMOUNT"
+                lower.contains("category") -> "CATEGORY"
+                lower.contains("oldest") -> "DATE_ASC"
+                else -> "DATE"
+            }
+            return ParsedFinanceCommand.CustomizeCommand(
+                action = "SORT",
+                payload = payload,
+                message = "Sorting ledger by $payload"
+            )
+        }
+        return null
+    }
+
+    private fun parseDeleteCommand(
+        trimmed: String,
+        lower: String,
+        transactions: List<TransactionEntity>
+    ): ParsedFinanceCommand? {
+        val isDelete = lower.contains("delete") || lower.contains("remove") ||
+                lower.contains("undo") || lower.contains("erase") || lower.contains("cancel")
+        if (!isDelete) return null
+        // Don't hijack budget/goal/holding/chat/memory deletions
+        if (lower.contains("budget") || lower.contains("goal") || lower.contains("holding") ||
+            lower.contains("chat") || lower.contains("memory") || lower.contains("account")) return null
+
+        val sorted = transactions.sortedByDescending { it.timestamp }
+
+        fun money(v: Double) = "₹${String.format(Locale.US, "%.2f", v)}"
+
+        // "delete all transactions / clear everything"
+        if (lower.contains("all") || lower.contains("everything") || lower.contains("history")) {
+            if (sorted.isEmpty()) return ParsedFinanceCommand.QueryResponseCommand("DELETE", "You have no transactions to delete yet.")
+            return ParsedFinanceCommand.DeleteTransactionCommand(
+                transactionsToDelete = sorted,
+                confirmationMessage = "🧹 Deleted all ${sorted.size} transactions from your ledger."
+            )
+        }
+
+        // "delete last transaction / undo / remove latest"
+        if (lower.contains("last") || lower.contains("latest") || lower.contains("recent") || lower.contains("undo") || lower.contains("previous")) {
+            val target = sorted.firstOrNull()
+                ?: return ParsedFinanceCommand.QueryResponseCommand("DELETE", "You have no transactions to delete yet.")
+            return ParsedFinanceCommand.DeleteTransactionCommand(
+                transactionsToDelete = listOf(target),
+                confirmationMessage = "🗑️ Deleted your last transaction: '${target.title}' (${money(target.amount)})."
+            )
+        }
+
+        // "delete transaction 3 / remove entry #2 / delete number 1"
+        val numMatch = Regex("(?i)(?:transaction|entry|record|#|number|no\\.?)\\s*(\\d{1,3})").find(trimmed)
+            ?: Regex("(?i)(?:delete|remove|erase|cancel)\\s*(\\d{1,3})\\b").find(trimmed)
+        if (numMatch != null) {
+            val idx = numMatch.groupValues[1].toIntOrNull() ?: 0
+            val target = sorted.getOrNull(idx - 1)
+            return if (target != null) {
+                ParsedFinanceCommand.DeleteTransactionCommand(
+                    transactionsToDelete = listOf(target),
+                    confirmationMessage = "🗑️ Deleted transaction #$idx: '${target.title}' (${money(target.amount)})."
+                )
+            } else {
+                ParsedFinanceCommand.QueryResponseCommand("DELETE", "Couldn't find transaction #$idx — you have ${sorted.size} transaction(s).")
+            }
+        }
+
+        // "delete swiggy / remove the rent entry"
+        val subject = trimmed
+            .replace(Regex("(?i)\\b(delete|remove|erase|cancel|undo|the|my|transaction|entry|record|expense|all)\\b"), " ")
+            .trim()
+        if (subject.isNotBlank() && subject.length >= 2) {
+            val matches = sorted.filter {
+                it.title.contains(subject, ignoreCase = true) ||
+                        it.merchant.contains(subject, ignoreCase = true) ||
+                        it.category.displayName.contains(subject, ignoreCase = true)
+            }
+            return when {
+                matches.isEmpty() -> ParsedFinanceCommand.QueryResponseCommand("DELETE", "I couldn't find any transaction matching '$subject'.")
+                matches.size == 1 -> {
+                    val t = matches[0]
+                    ParsedFinanceCommand.DeleteTransactionCommand(
+                        transactionsToDelete = listOf(t),
+                        confirmationMessage = "🗑️ Deleted '${t.title}' (${money(t.amount)})."
+                    )
+                }
+                else -> {
+                    val names = matches.take(3).joinToString { "'${it.title}'" } + if (matches.size > 3) "…" else ""
+                    ParsedFinanceCommand.DeleteTransactionCommand(
+                        transactionsToDelete = matches,
+                        confirmationMessage = "🗑️ Deleted ${matches.size} matching transactions: $names."
+                    )
+                }
+            }
+        }
+
+        return ParsedFinanceCommand.QueryResponseCommand(
+            "DELETE",
+            "Tell me exactly what to delete, e.g. 'delete last transaction', 'delete transaction 3', or 'delete Swiggy'."
+        )
     }
 
     private fun handleSpendingQuery(
@@ -288,12 +425,12 @@ object NaturalLanguageFinanceParser {
             val avg = if (catExpenses.isNotEmpty()) totalCat / catExpenses.size else 0.0
             return buildString {
                 append("🛒 **${queriedCategory.displayName} Spending Summary**:\n\n")
-                append("• **Total Spent**: **$${String.format(Locale.US, "%,.2f", totalCat)}** across ${catExpenses.size} transactions.\n")
-                append("• **Average Ticket**: $${String.format(Locale.US, "%.2f", avg)} per transaction.\n")
+                append("• **Total Spent**: **₹${String.format(Locale.US, "%,.2f", totalCat)}** across ${catExpenses.size} transactions.\n")
+                append("• **Average Ticket**: ₹${String.format(Locale.US, "%.2f", avg)} per transaction.\n")
                 if (catExpenses.isNotEmpty()) {
                     append("• **Recent Transactions**:\n")
                     catExpenses.take(3).forEach {
-                        append("  - ${it.title}: $${String.format(Locale.US, "%.2f", it.amount)}\n")
+                        append("  - ${it.title}: ₹${String.format(Locale.US, "%.2f", it.amount)}\n")
                     }
                 }
             }
@@ -315,7 +452,7 @@ object NaturalLanguageFinanceParser {
 
             return buildString {
                 append("📅 **Spending for $monthName**:\n\n")
-                append("• **Total Outflows**: **$${String.format(Locale.US, "%,.2f", total)}** (${lastMonthExpenses.size} transactions).\n")
+                append("• **Total Outflows**: **₹${String.format(Locale.US, "%,.2f", total)}** (${lastMonthExpenses.size} transactions).\n")
                 val topCats = lastMonthExpenses.groupBy { it.category }
                     .mapValues { it.value.sumOf { tx -> tx.amount } }
                     .toList()
@@ -324,7 +461,7 @@ object NaturalLanguageFinanceParser {
                 if (topCats.isNotEmpty()) {
                     append("• **Top Categories**:\n")
                     topCats.forEach { (cat, amt) ->
-                        append("  - ${cat.displayName}: $${String.format(Locale.US, "%,.2f", amt)}\n")
+                        append("  - ${cat.displayName}: ₹${String.format(Locale.US, "%,.2f", amt)}\n")
                     }
                 }
             }
@@ -334,24 +471,61 @@ object NaturalLanguageFinanceParser {
         val totalSpent = expenses.sumOf { it.amount }
         return buildString {
             append("💳 **Current Period Spending Overview**:\n\n")
-            append("• **Total Outflows**: **$${String.format(Locale.US, "%,.2f", totalSpent)}**\n")
+            append("• **Total Outflows**: **₹${String.format(Locale.US, "%,.2f", totalSpent)}**\n")
             summary?.let {
-                append("• **Net Cash Flow**: $${String.format(Locale.US, "%,.2f", it.netCashFlow)}\n")
-                append("• **Daily Burn Velocity**: $${String.format(Locale.US, "%.2f", it.dailyBurnRate)} / day\n")
+                append("• **Net Cash Flow**: ₹${String.format(Locale.US, "%,.2f", it.netCashFlow)}\n")
+                append("• **Daily Burn Velocity**: ₹${String.format(Locale.US, "%.2f", it.dailyBurnRate)} / day\n")
             }
             append("\nYou can ask specifically about any category (e.g. *'How much did I spend on dining?'*) or type *'Show cash flow chart'* for interactive visualization.")
         }
     }
 
+    private val wordNumbers = mapOf(
+        "one" to 1.0, "two" to 2.0, "three" to 3.0, "four" to 4.0, "five" to 5.0,
+        "six" to 6.0, "seven" to 7.0, "eight" to 8.0, "nine" to 9.0, "ten" to 10.0,
+        "eleven" to 11.0, "twelve" to 12.0, "thirteen" to 13.0, "fourteen" to 14.0,
+        "fifteen" to 15.0, "sixteen" to 16.0, "seventeen" to 17.0, "eighteen" to 18.0,
+        "nineteen" to 19.0, "twenty" to 20.0, "thirty" to 30.0, "forty" to 40.0,
+        "fifty" to 50.0, "sixty" to 60.0, "seventy" to 70.0, "eighty" to 80.0, "ninety" to 90.0
+    )
+
     private fun extractAmount(text: String): Double {
-        val matcher = AMOUNT_PATTERN.matcher(text)
-        if (matcher.find()) {
-            val numStr = matcher.group(1) ?: return 0.0
-            var value = numStr.toDoubleOrNull() ?: 0.0
-            if (text.contains(numStr + "k") || text.contains(numStr + " grand")) {
-                value *= 1000.0
+        val lower = text.lowercase()
+        // "1.5 lakh" / "20 lakhs" / "2 crore" — Indian multipliers (before plain numbers)
+        Regex("""(?i)(\d+(?:[.,]\d+)?)\s*(lakh|lakhs|lac|lacs)\b""").find(lower)?.let {
+            val n = it.groupValues[1].replace(",", "").toDoubleOrNull() ?: 0.0
+            return n * 100_000.0
+        }
+        Regex("""(?i)(\d+(?:[.,]\d+)?)\s*(crore|crores|cr)\b""").find(lower)?.let {
+            val n = it.groupValues[1].replace(",", "").toDoubleOrNull() ?: 0.0
+            return n * 10_000_000.0
+        }
+        // "62,000" / "₹450" / "5000 k" — plain numbers
+        Regex("""(?i)(?:[₹$]|INR|USD|EUR)?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(k|thousand|grand)?\b""").find(lower)?.let {
+            val n = it.groupValues[1].replace(",", "").toDoubleOrNull() ?: 0.0
+            val suffix = it.groupValues[2]
+            return when {
+                suffix == "k" || suffix == "thousand" || suffix == "grand" -> n * 1000.0
+                else -> n
             }
-            return value
+        }
+        // word numbers: "twenty thousand" -> 20000, "fifty" -> 50, "two lakh" etc.
+        Regex("""(?i)\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)?\s*(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen)?\s*(hundred|thousand|lakh|lac|lakhs|lacs|crore|crores)?\b""").find(lower)?.let { m ->
+            val tens = m.groupValues[1]
+            val ones = m.groupValues[2]
+            val scale = m.groupValues[3]
+            if (tens.isEmpty() && ones.isEmpty() && scale.isEmpty()) return@let
+            var value = 0.0
+            if (tens.isNotEmpty()) value += wordNumbers[tens] ?: 0.0
+            if (ones.isNotEmpty()) value += wordNumbers[ones] ?: 0.0
+            value = when (scale) {
+                "hundred" -> (if (value == 0.0) 1.0 else value) * 100.0
+                "thousand" -> (if (value == 0.0) 1.0 else value) * 1000.0
+                "lakh", "lac", "lakhs", "lacs" -> (if (value == 0.0) 1.0 else value) * 100_000.0
+                "crore", "crores" -> (if (value == 0.0) 1.0 else value) * 10_000_000.0
+                else -> value
+            }
+            if (value > 0) return value
         }
         return 0.0
     }
@@ -359,17 +533,18 @@ object NaturalLanguageFinanceParser {
     private fun detectCategory(text: String): TransactionCategory {
         return when {
             text.contains("rent") || text.contains("apartment") || text.contains("mortgage") || text.contains("housing") -> TransactionCategory.HOUSING
-            text.contains("grocer") || text.contains("food market") || text.contains("supermarket") || text.contains("trader joe") || text.contains("whole foods") || text.contains("safeway") || text.contains("walmart") -> TransactionCategory.GROCERIES
-            text.contains("electric") || text.contains("water bill") || text.contains("wifi") || text.contains("internet") || text.contains("utility") || text.contains("utilities") || text.contains("power") || text.contains("gas bill") -> TransactionCategory.UTILITIES
-            text.contains("uber") || text.contains("lyft") || text.contains("gas") || text.contains("fuel") || text.contains("metro") || text.contains("transit") || text.contains("subway") || text.contains("bus") || text.contains("train") || text.contains("parking") -> TransactionCategory.TRANSPORTATION
+            text.contains("grocer") || text.contains("food market") || text.contains("supermarket") || text.contains("trader joe") || text.contains("whole foods") || text.contains("safeway") || text.contains("walmart") || text.contains("bigbasket") || text.contains("dmart") || text.contains("blinkit") || text.contains("zepto") || text.contains("jiomart") || text.contains("food") || text.contains("rashan") -> TransactionCategory.GROCERIES
+            text.contains("electric") || text.contains("water bill") || text.contains("wifi") || text.contains("internet") || text.contains("utility") || text.contains("utilities") || text.contains("power") || text.contains("gas bill") || text.contains("recharge") || text.contains("airtel") || text.contains("jio") || text.contains("bsnl") || text.contains("electricity") || text.contains("bill") -> TransactionCategory.UTILITIES
+            text.contains("uber") || text.contains("lyft") || text.contains("gas") || text.contains("fuel") || text.contains("metro") || text.contains("transit") || text.contains("subway") || text.contains("bus") || text.contains("train") || text.contains("parking") || text.contains("ola") || text.contains("rapido") || text.contains("rickshaw") || text.contains("petrol") || text.contains("diesel") -> TransactionCategory.TRANSPORTATION
             text.contains("doctor") || text.contains("pharmacy") || text.contains("medicine") || text.contains("hospital") || text.contains("dental") || text.contains("health") -> TransactionCategory.HEALTHCARE
-            text.contains("coffee") || text.contains("starbucks") || text.contains("cafe") || text.contains("lunch") || text.contains("dinner") || text.contains("breakfast") || text.contains("restaurant") || text.contains("dining") || text.contains("pizza") || text.contains("burger") || text.contains("bistro") || text.contains("takeout") -> TransactionCategory.DINING
-            text.contains("netflix") || text.contains("spotify") || text.contains("movie") || text.contains("cinema") || text.contains("game") || text.contains("concert") || text.contains("entertainment") || text.contains("streaming") -> TransactionCategory.ENTERTAINMENT
-            text.contains("amazon") || text.contains("clothes") || text.contains("shopping") || text.contains("shoes") || text.contains("gadget") || text.contains("electronic") -> TransactionCategory.SHOPPING
-            text.contains("flight") || text.contains("hotel") || text.contains("airbnb") || text.contains("travel") || text.contains("vacation") -> TransactionCategory.TRAVEL
-            text.contains("book") || text.contains("course") || text.contains("tuition") || text.contains("gym") || text.contains("fitness") -> TransactionCategory.EDUCATION
-            text.contains("stock") || text.contains("etf") || text.contains("crypto") || text.contains("vanguard") || text.contains("invest") -> TransactionCategory.INVESTMENT
-            text.contains("savings") || text.contains("emergency fund") || text.contains("hysa") -> TransactionCategory.SAVINGS_TRANSFER
+            text.contains("insurance") || text.contains("lic") || text.contains("policybazaar") || text.contains("term plan") -> TransactionCategory.INSURANCE
+            text.contains("coffee") || text.contains("starbucks") || text.contains("cafe") || text.contains("lunch") || text.contains("dinner") || text.contains("breakfast") || text.contains("restaurant") || text.contains("dining") || text.contains("pizza") || text.contains("burger") || text.contains("bistro") || text.contains("takeout") || text.contains("swiggy") || text.contains("zomato") || text.contains("dunzo") || text.contains("dominos") || text.contains("khana") || text.contains("khaana") -> TransactionCategory.DINING
+            text.contains("netflix") || text.contains("spotify") || text.contains("movie") || text.contains("cinema") || text.contains("game") || text.contains("concert") || text.contains("entertainment") || text.contains("streaming") || text.contains("hotstar") || text.contains("sonyliv") || text.contains("tatasky") -> TransactionCategory.ENTERTAINMENT
+            text.contains("amazon") || text.contains("clothes") || text.contains("shopping") || text.contains("shoes") || text.contains("gadget") || text.contains("electronic") || text.contains("flipkart") || text.contains("myntra") || text.contains("ajio") || text.contains("meesho") -> TransactionCategory.SHOPPING
+            text.contains("flight") || text.contains("hotel") || text.contains("airbnb") || text.contains("travel") || text.contains("vacation") || text.contains("irctc") || text.contains("indigo") || text.contains("air india") || text.contains("makemytrip") || text.contains("goibibo") -> TransactionCategory.TRAVEL
+            text.contains("book") || text.contains("course") || text.contains("tuition") || text.contains("gym") || text.contains("fitness") || text.contains("coaching") -> TransactionCategory.EDUCATION
+            text.contains("stock") || text.contains("etf") || text.contains("crypto") || text.contains("vanguard") || text.contains("invest") || text.contains("zerodha") || text.contains("groww") || text.contains("upstox") || text.contains("nifty") || text.contains("sensex") || text.contains("mutual fund") || text.contains("gold bond") || text.contains("sovereign gold") -> TransactionCategory.INVESTMENT
+            text.contains("savings") || text.contains("emergency fund") || text.contains("hysa") || text.contains("ppf") || text.contains("epf") || text.contains("nps") -> TransactionCategory.SAVINGS_TRANSFER
             else -> TransactionCategory.OTHER
         }
     }
