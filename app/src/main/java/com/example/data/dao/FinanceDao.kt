@@ -153,3 +153,87 @@ interface PortfolioDao {
     @Query("DELETE FROM portfolio_holdings")
     suspend fun clearAllHoldings()
 }
+
+@Dao
+interface LoanDao {
+    @Query("SELECT * FROM loans ORDER BY outstandingAmount DESC")
+    fun getAllLoans(): Flow<List<LoanEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLoan(loan: LoanEntity): Long
+
+    @Update
+    suspend fun updateLoan(loan: LoanEntity)
+
+    @Delete
+    suspend fun deleteLoan(loan: LoanEntity)
+
+    @Query("DELETE FROM loans")
+    suspend fun clearAllLoans()
+}
+
+@Dao
+interface TaskDao {
+    @Query("SELECT * FROM tasks ORDER BY isActive DESC, nextDueDateMillis ASC")
+    fun getAllTasks(): Flow<List<TaskEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTask(task: TaskEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTasks(tasks: List<TaskEntity>)
+
+    @Update
+    suspend fun updateTask(task: TaskEntity)
+
+    @Delete
+    suspend fun deleteTask(task: TaskEntity)
+
+    @Query("DELETE FROM tasks")
+    suspend fun clearAllTasks()
+}
+
+@Dao
+interface AccountDao {
+    @Query("SELECT * FROM accounts ORDER BY isArchived ASC, type ASC, name ASC")
+    fun getAllAccounts(): Flow<List<AccountEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAccount(account: AccountEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAccounts(accounts: List<AccountEntity>)
+
+    @Update
+    suspend fun updateAccount(account: AccountEntity)
+
+    @Delete
+    suspend fun deleteAccount(account: AccountEntity)
+
+    @Query("DELETE FROM accounts")
+    suspend fun clearAllAccounts()
+}
+
+@Dao
+interface RecurringTransactionDao {
+    @Query("SELECT * FROM recurring_transactions ORDER BY isActive DESC, nextDueDateMillis ASC")
+    fun getAllRecurring(): Flow<List<RecurringTransactionEntity>>
+
+    @Query("SELECT * FROM recurring_transactions WHERE isActive = 1 ORDER BY nextDueDateMillis ASC")
+    suspend fun getActiveRecurring(): List<RecurringTransactionEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecurring(r: RecurringTransactionEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecurringList(list: List<RecurringTransactionEntity>)
+
+    @Update
+    suspend fun updateRecurring(r: RecurringTransactionEntity)
+
+    @Delete
+    suspend fun deleteRecurring(r: RecurringTransactionEntity)
+
+    @Query("DELETE FROM recurring_transactions")
+    suspend fun clearAllRecurring()
+}

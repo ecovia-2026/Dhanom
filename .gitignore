@@ -16,3 +16,8 @@
 local.properties
 .env
 debug.keystore
+# Built APKs are published via CI to the apk-dist branch (see README).
+*.apk
+/apk/
+# dhanom.p12 is COMMITTED on purpose — it is the app's stable signing key so
+# every CI build has the same signature (updates install over previous builds).

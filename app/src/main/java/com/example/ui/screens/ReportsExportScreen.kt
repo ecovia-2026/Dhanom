@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,6 +46,26 @@ fun ReportsExportScreen(
     val context = LocalContext.current
     var statusMessage by remember { mutableStateOf<String?>(null) }
 
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val json = context.contentResolver.openInputStream(it)
+                    ?.bufferedReader()
+                    ?.use { reader -> reader.readText() }
+                if (!json.isNullOrBlank()) {
+                    onImportBackup(json)
+                    statusMessage = "Importing backup from ${it.lastPathSegment ?: "file"}..."
+                } else {
+                    statusMessage = "Could not read the selected file."
+                }
+            } catch (e: Exception) {
+                statusMessage = "Import failed: ${e.message}"
+            }
+        }
+    }
+
     fun shareFile(file: java.io.File, mimeType: String) {
         try {
             val shareIntent = ExportManager.createShareIntent(context, file, mimeType)
@@ -67,12 +90,12 @@ fun ReportsExportScreen(
                 text = "Export & Reports",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = BentoDeepPurple
+                color = MaterialTheme.colorScheme.primary
             )
             Text(
                 text = "Export your financial data or share to another device",
                 style = MaterialTheme.typography.bodyMedium,
-                color = BentoSecondaryText
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -80,15 +103,15 @@ fun ReportsExportScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BentoBorder)
+                color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(
                         text = "Export Data Files",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = BentoDeepPurple
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -129,25 +152,25 @@ fun ReportsExportScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                color = BentoLavenderContainer,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BentoBorder)
+                color = MaterialTheme.colorScheme.primaryContainer,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = BentoDeepPurple)
+                        Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Device Transfer & Backup",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = BentoDeepPurple
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Export a full backup JSON file and share it via QuickShare, Nearby Share, Bluetooth, or email to move all your data to a new device.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = BentoOnBackgroundLight
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -160,6 +183,20 @@ fun ReportsExportScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Create & Share Full Backup")
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            importLauncher.launch(
+                                arrayOf("application/json", "application/octet-stream", "text/plain", "*/*")
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("import_backup_button"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Import Backup From Device")
+                    }
                 }
             }
         }
@@ -168,15 +205,15 @@ fun ReportsExportScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BentoBorder)
+                color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(
                         text = "Data Summary",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = BentoDeepPurple
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     DataSummaryRow("Transactions", transactions.size.toString())
@@ -198,13 +235,13 @@ fun ReportsExportScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    color = BentoLavenderContainer
+                    color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
                         text = msg,
                         modifier = Modifier.padding(14.dp),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = BentoDeepPurple
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -225,7 +262,7 @@ private fun ExportOptionRow(
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = BentoSurfaceLight
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -235,17 +272,17 @@ private fun ExportOptionRow(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(BentoLavenderContainer),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = BentoPrimaryPurple, modifier = Modifier.size(20.dp))
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = BentoDeepPurple)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = BentoSecondaryText)
+                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = BentoSecondaryText)
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -256,7 +293,7 @@ private fun DataSummaryRow(label: String, value: String) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = BentoSecondaryText)
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = BentoDeepPurple)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
     }
 }

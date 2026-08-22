@@ -3,6 +3,7 @@ package com.example.data.repository
 import com.example.data.dao.*
 import com.example.data.model.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import java.util.Calendar
 
 class FinanceRepository(
@@ -11,7 +12,11 @@ class FinanceRepository(
     private val goalDao: GoalDao,
     private val brainMemoryDao: BrainMemoryDao,
     private val chatMessageDao: ChatMessageDao,
-    private val portfolioDao: PortfolioDao
+    private val portfolioDao: PortfolioDao,
+    private val loanDao: LoanDao,
+    private val taskDao: TaskDao,
+    private val accountDao: AccountDao,
+    private val recurringTransactionDao: RecurringTransactionDao
 ) {
     val allTransactions: Flow<List<TransactionEntity>> = transactionDao.getAllTransactions()
     val allBudgets: Flow<List<BudgetEntity>> = budgetDao.getAllBudgets()
@@ -19,6 +24,10 @@ class FinanceRepository(
     val allMemories: Flow<List<BrainMemoryEntity>> = brainMemoryDao.getAllMemories()
     val chatMessages: Flow<List<ChatMessageEntity>> = chatMessageDao.getAllMessages()
     val allHoldings: Flow<List<PortfolioHoldingEntity>> = portfolioDao.getAllHoldings()
+    val allLoans: Flow<List<LoanEntity>> = loanDao.getAllLoans()
+    val allTasks: Flow<List<TaskEntity>> = taskDao.getAllTasks()
+    val allAccounts: Flow<List<AccountEntity>> = accountDao.getAllAccounts()
+    val allRecurring: Flow<List<RecurringTransactionEntity>> = recurringTransactionDao.getAllRecurring()
 
     suspend fun insertTransaction(transaction: TransactionEntity): Long =
         transactionDao.insertTransaction(transaction)
@@ -86,7 +95,71 @@ class FinanceRepository(
     suspend fun clearHoldings() =
         portfolioDao.clearAllHoldings()
 
-    suspend fun checkAndSeedInitialData() {
+    suspend fun insertLoan(loan: LoanEntity): Long = loanDao.insertLoan(loan)
+    suspend fun updateLoan(loan: LoanEntity) = loanDao.updateLoan(loan)
+    suspend fun deleteLoan(loan: LoanEntity) = loanDao.deleteLoan(loan)
+    suspend fun clearLoans() = loanDao.clearAllLoans()
+
+    suspend fun insertTask(task: TaskEntity): Long = taskDao.insertTask(task)
+    suspend fun insertTasks(tasks: List<TaskEntity>) = taskDao.insertTasks(tasks)
+    suspend fun updateTask(task: TaskEntity) = taskDao.updateTask(task)
+    suspend fun deleteTask(task: TaskEntity) = taskDao.deleteTask(task)
+    suspend fun clearTasks() = taskDao.clearAllTasks()
+
+    suspend fun insertAccount(account: AccountEntity): Long = accountDao.insertAccount(account)
+    suspend fun updateAccount(account: AccountEntity) = accountDao.updateAccount(account)
+    suspend fun deleteAccount(account: AccountEntity) = accountDao.deleteAccount(account)
+    suspend fun clearAccounts() = accountDao.clearAllAccounts()
+
+    suspend fun insertRecurring(r: RecurringTransactionEntity): Long = recurringTransactionDao.insertRecurring(r)
+    suspend fun updateRecurring(r: RecurringTransactionEntity) = recurringTransactionDao.updateRecurring(r)
+    suspend fun deleteRecurring(r: RecurringTransactionEntity) = recurringTransactionDao.deleteRecurring(r)
+    suspend fun clearRecurring() = recurringTransactionDao.clearAllRecurring()
+
+    /** Seed sensible default accounts on first run so transactions map cleanly. */
+    suspend fun seedDefaultAccounts() {
+        val existing = accountDao.getAllAccounts().first()
+        if (existing.isEmpty()) {
+            accountDao.insertAccounts(
+                listOf(
+                    AccountEntity(name = "Cash", type = AccountType.CASH, initialBalance = 0.0, colorArgb = 0xFF0E9F6E, icon = "cash"),
+                    AccountEntity(name = "Bank Account", type = AccountType.BANK, initialBalance = 0.0, colorArgb = 0xFF0B6BCB, icon = "bank"),
+                    AccountEntity(name = "Credit Card", type = AccountType.CREDIT_CARD, initialBalance = 0.0, colorArgb = 0xFFD6336C, icon = "card")
+                )
+            )
+        }
+    }
+
+    /** First-run onboarding: welcome message + default accounts (NO fake transactions). */
+    suspend fun onboardIfNeeded() {
+        seedDefaultAccounts()
+        if (chatMessageDao.getRecentMessages(1).isEmpty()) {
+            chatMessageDao.insertMessage(
+                ChatMessageEntity(
+                    sender = MessageSender.DHANOM_AI,
+                    messageText = "🙏 Welcome to Dhan-OM, your personal AI.\n\nI run an on-device Gemma 4 E2B (fast) brain — no cloud needed. Try:\n\n• \"Spent ₹450 on Swiggy\"\n• \"Add income 50000 salary\"\n• \"Delete my last transaction\"\n• \"Set budget 8000 groceries\"\n• \"Show my spending on dining\"\n\nTip: if my brain isn't downloaded yet, accept the download prompt (or go to Profile → AI Brain) and every answer becomes real AI reasoning.",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    /** Wipe all local finance data (explicit user action only). */
+    suspend fun clearAllData() {
+        transactionDao.clearAllTransactions()
+        budgetDao.clearAllBudgets()
+        goalDao.clearAllGoals()
+        brainMemoryDao.clearAllMemories()
+        chatMessageDao.clearChatHistory()
+        portfolioDao.clearAllHoldings()
+        loanDao.clearAllLoans()
+        taskDao.clearAllTasks()
+        accountDao.clearAllAccounts()
+        recurringTransactionDao.clearAllRecurring()
+    }
+
+    /** Explicitly load rich demo/sample data (only when the user asks for it). */
+    suspend fun seedSampleData() {
         val count = transactionDao.getTransactionCount()
         if (count == 0) {
             val now = System.currentTimeMillis()
@@ -448,7 +521,7 @@ class FinanceRepository(
             chatMessageDao.insertMessage(
                 ChatMessageEntity(
                     sender = MessageSender.DHANOM_AI,
-                    messageText = "Namaste! I am Dhanom, your personal finance AI. I track your cash flows, investments, budgets, and spending habits locally and securely on your device. You can say things like 'Spent ₹500 on Swiggy', 'Show cash flow chart', 'How is my portfolio doing?', or ask for financial advice anytime!",
+                    messageText = "Namaste! I am Dhan-OM, your personal finance AI. This is demo data you chose to load — clear it anytime from Profile → Clear All Data.",
                     timestamp = now
                 )
             )

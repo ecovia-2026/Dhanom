@@ -110,8 +110,7 @@ class DhanomScreensUiTest {
                     onSortChange = {},
                     onAddTransactionClick = {},
                     onEditTransaction = {},
-                    onDeleteTransaction = {},
-                    onResetSampleData = {}
+                    onDeleteTransaction = {}
                 )
             }
         }
@@ -138,9 +137,10 @@ class DhanomScreensUiTest {
                     memories = emptyList(),
                     insights = emptyList(),
                     isChatLoading = false,
-                    enableInternetKnowledge = false,
-                    onToggleInternetKnowledge = {},
                     onSendMessage = {},
+                    onAttachFile = {},
+                    onQuickAdd = {},
+                    onDeleteLast = {},
                     onClearChat = {},
                     onRefreshBrain = {},
                     onClearBrain = {}

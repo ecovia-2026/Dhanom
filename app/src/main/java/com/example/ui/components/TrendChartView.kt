@@ -30,8 +30,8 @@ fun DailyTrendChartView(
             .fillMaxWidth()
             .testTag("daily_trend_chart_card"),
         shape = RoundedCornerShape(28.dp),
-        color = Color.White,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BentoBorder)
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(
             modifier = Modifier
@@ -48,12 +48,12 @@ fun DailyTrendChartView(
                         text = "Flow Analysis",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = BentoDeepPurple
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "Inflow vs Outflow over time",
                         style = MaterialTheme.typography.bodySmall,
-                        color = BentoSecondaryText
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -61,8 +61,8 @@ fun DailyTrendChartView(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    LegendPill(color = BentoPrimaryPurple, label = "Inflow")
-                    LegendPill(color = BentoLilacContainer, label = "Outflow")
+                    LegendPill(color = MaterialTheme.colorScheme.primary, label = "Inflow")
+                    LegendPill(color = MaterialTheme.colorScheme.secondaryContainer, label = "Outflow")
                 }
             }
 

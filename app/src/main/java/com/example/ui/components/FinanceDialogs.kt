@@ -21,6 +21,7 @@ import java.util.Locale
 @Composable
 fun AddEditTransactionDialog(
     existing: TransactionEntity?,
+    accounts: List<AccountEntity> = emptyList(),
     onDismiss: () -> Unit,
     onSave: (
         title: String,
@@ -38,11 +39,12 @@ fun AddEditTransactionDialog(
     var selectedType by remember { mutableStateOf(existing?.type ?: TransactionType.EXPENSE) }
     var selectedCategory by remember { mutableStateOf(existing?.category ?: TransactionCategory.GROCERIES) }
     var selectedNecessity by remember { mutableStateOf(existing?.necessity ?: ExpenseNecessity.NEED) }
-    var account by remember { mutableStateOf(existing?.account ?: "Main Checking") }
+    var account by remember { mutableStateOf(existing?.account ?: accounts.firstOrNull()?.name ?: "Bank Account") }
     var merchant by remember { mutableStateOf(existing?.merchant ?: "") }
     var notes by remember { mutableStateOf(existing?.notes ?: "") }
 
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
+    var accountDropdownExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -76,7 +78,7 @@ fun AddEditTransactionDialog(
                 OutlinedTextField(
                     value = amountStr,
                     onValueChange = { amountStr = it },
-                    label = { Text("Amount ($)") },
+                    label = { Text("Amount (₹)") },
                     placeholder = { Text("0.00") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier
@@ -159,15 +161,36 @@ fun AddEditTransactionDialog(
                     singleLine = true
                 )
 
-                // Account
-                OutlinedTextField(
-                    value = account,
-                    onValueChange = { account = it },
-                    label = { Text("Account") },
-                    placeholder = { Text("Main Checking / Credit Card") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                // Account (dropdown from the user's accounts + free text)
+                ExposedDropdownMenuBox(
+                    expanded = accountDropdownExpanded,
+                    onExpandedChange = { accountDropdownExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = account,
+                        onValueChange = { account = it },
+                        label = { Text("Account") },
+                        placeholder = { Text("Cash / Bank / Credit Card") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountDropdownExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                        singleLine = true
+                    )
+                    if (accounts.isNotEmpty()) {
+                        ExposedDropdownMenu(
+                            expanded = accountDropdownExpanded,
+                            onDismissRequest = { accountDropdownExpanded = false }
+                        ) {
+                            accounts.forEach { acc ->
+                                DropdownMenuItem(
+                                    text = { Text(acc.name) },
+                                    onClick = { account = acc.name; accountDropdownExpanded = false }
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Notes
                 OutlinedTextField(
@@ -376,7 +399,7 @@ fun DepositGoalDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Current: $${String.format(Locale.US, "%.2f", goal.currentAmount)} / $${String.format(Locale.US, "%.2f", goal.targetAmount)}",
+                    text = "Current: ₹${String.format(Locale.US, "%.2f", goal.currentAmount)} / ₹${String.format(Locale.US, "%.2f", goal.targetAmount)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

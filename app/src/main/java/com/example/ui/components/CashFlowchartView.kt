@@ -44,8 +44,8 @@ fun CashFlowchartView(
             .fillMaxWidth()
             .testTag("cash_flowchart_card"),
         shape = RoundedCornerShape(28.dp),
-        color = Color.White,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BentoBorder)
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(
             modifier = Modifier
@@ -63,18 +63,18 @@ fun CashFlowchartView(
                         text = "Cash Flow Flowchart",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = BentoDeepPurple
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "Sankey Flow: Inflow → 50/30/20 Allocations → Expenses",
                         style = MaterialTheme.typography.bodySmall,
-                        color = BentoSecondaryText
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = BentoLavenderContainer,
+                    color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.padding(start = 8.dp)
                 ) {
                     Row(
@@ -85,14 +85,14 @@ fun CashFlowchartView(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(BentoActiveGreen)
+                                .background(MaterialTheme.colorScheme.primary)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Live Flow",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = BentoDeepPurple
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -267,7 +267,7 @@ fun CashFlowchartView(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "${node.subtitle} • Represents ${String.format(Locale.US, "%.1f", node.percentageOfInflow)}% of total monthly inflows ($${String.format(Locale.US, "%.2f", node.amount)})",
+                                    text = "${node.subtitle} • Represents ${String.format(Locale.US, "%.1f", node.percentageOfInflow)}% of total monthly inflows (₹${String.format(Locale.US, "%.2f", node.amount)})",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -332,7 +332,7 @@ fun FlowchartNodeCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "$${String.format(Locale.US, "%.2f", node.amount)}",
+                text = "₹${String.format(Locale.US, "%.2f", node.amount)}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = node.color
@@ -383,7 +383,7 @@ fun FlowchartCategoryRow(
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "$${String.format(Locale.US, "%.2f", node.amount)}",
+                text = "₹${String.format(Locale.US, "%.2f", node.amount)}",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface

@@ -66,15 +66,15 @@ fun PortfolioScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(24.dp),
-                        color = Color.White,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BentoBorder)
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                     ) {
                         Column(modifier = Modifier.padding(18.dp)) {
                             Text(
                                 text = "Asset Allocation",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = BentoDeepPurple
+                                color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(12.dp))
 
@@ -128,7 +128,7 @@ fun PortfolioScreen(
                                     Text(
                                         text = "${if (alloc.pnlPercent >= 0) "+" else ""}${String.format(Locale.US, "%.1f", alloc.pnlPercent)}%",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (alloc.pnlPercent >= 0) BentoActiveGreen else BentoExpenseRed
+                                        color = if (alloc.pnlPercent >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                                     )
                                 }
                             }
@@ -142,7 +142,7 @@ fun PortfolioScreen(
                     text = "Holdings (${holdings.size})",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = BentoDeepPurple
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -189,7 +189,7 @@ private fun PortfolioSummaryCard(
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("portfolio_summary_card"),
         shape = RoundedCornerShape(24.dp),
-        color = BentoDarkCard
+        color = MaterialTheme.colorScheme.inverseSurface
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -202,17 +202,17 @@ private fun PortfolioSummaryCard(
                         text = "TOTAL PORTFOLIO VALUE",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
                     )
                     Text(
                         text = "${Currency.INR.symbol}${String.format(Locale.US, "%,.2f", summary.totalCurrentValue)}",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.surface
                     )
                 }
                 IconButton(onClick = onUpdatePrices) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Update Prices", tint = Color.White)
+                    Icon(Icons.Default.Refresh, contentDescription = "Update Prices", tint = MaterialTheme.colorScheme.surface)
                 }
             }
 
@@ -230,13 +230,13 @@ private fun PortfolioSummaryCard(
                 SummaryStatBox(
                     label = "P&L",
                     value = "${if (isProfit) "+" else ""}${Currency.INR.symbol}${String.format(Locale.US, "%,.0f", summary.totalPnl)}",
-                    valueColor = if (isProfit) BentoActiveGreen else BentoExpenseRed,
+                    valueColor = if (isProfit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     modifier = Modifier.weight(1f)
                 )
                 SummaryStatBox(
                     label = "Returns",
                     value = "${if (isProfit) "+" else ""}${String.format(Locale.US, "%.1f", summary.totalPnlPercent)}%",
-                    valueColor = if (isProfit) BentoActiveGreen else BentoExpenseRed,
+                    valueColor = if (isProfit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -246,19 +246,19 @@ private fun PortfolioSummaryCard(
             if (summary.monthlySipTotal > 0) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.15f)
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.15f)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Autorenew, contentDescription = null, tint = BentoActiveGreen, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Autorenew, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Monthly SIP: ${Currency.INR.symbol}${String.format(Locale.US, "%,.0f", summary.monthlySipTotal)}",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.surface
                         )
                     }
                 }
@@ -271,19 +271,19 @@ private fun PortfolioSummaryCard(
 private fun SummaryStatBox(
     label: String,
     value: String,
-    valueColor: Color = Color.White,
+    valueColor: Color = MaterialTheme.colorScheme.surface,
     modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        color = Color.White.copy(alpha = 0.12f)
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.12f)
     ) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
                 fontSize = 10.sp
             )
             Text(
@@ -303,7 +303,7 @@ private fun HoldingCard(
     onDelete: () -> Unit
 ) {
     val isProfit = holding.unrealizedPnl >= 0
-    val pnlColor = if (isProfit) BentoActiveGreen else BentoExpenseRed
+    val pnlColor = if (isProfit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
     val currencySymbol = Currency.fromCode(holding.currency).symbol
 
     Card(

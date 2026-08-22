@@ -2,13 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- NOTE: No SMS / READ_SMS permissions here on purpose. Realme/ColorOS
+         silently blocks sideloaded apps that request SMS access. The bank-SMS
+         auto-tracking feature is kept in code but disabled until you choose to
+         re-enable it (it can be shipped as an optional variant later). -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
+        android:name=".DhanomApplication"
         android:allowBackup="true"
         android:hardwareAccelerated="true"
         android:largeHeap="true"
+        android:installLocation="auto"
+        android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -16,6 +23,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+
+        <!-- Optional native libs for LiteRT-LM GPU/NPU acceleration -->
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

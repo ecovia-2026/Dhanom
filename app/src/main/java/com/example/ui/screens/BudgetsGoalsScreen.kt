@@ -216,7 +216,7 @@ fun BudgetProgressCard(
                     Text(
                         text = if (isOver) "Budget Exceeded!"
                         else if (isNear) "Approaching limit (${(progress.progressFraction * 100).toInt()}%)"
-                        else "$${String.format(Locale.US, "%.2f", progress.remainingAmount)} remaining",
+                        else "₹${String.format(Locale.US, "%.2f", progress.remainingAmount)} remaining",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (isOver) Color(0xFFEF4444) else if (isNear) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (isOver || isNear) FontWeight.Bold else FontWeight.Normal
@@ -225,7 +225,7 @@ fun BudgetProgressCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "$${String.format(Locale.US, "%.0f", progress.spentAmount)} / $${String.format(Locale.US, "%.0f", progress.monthlyLimit)}",
+                        text = "₹${String.format(Locale.US, "%.0f", progress.spentAmount)} / ₹${String.format(Locale.US, "%.0f", progress.monthlyLimit)}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -326,7 +326,7 @@ fun GoalCardItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "$${String.format(Locale.US, "%.2f", goal.currentAmount)} of $${String.format(Locale.US, "%.2f", goal.targetAmount)}",
+                    text = "₹${String.format(Locale.US, "%.2f", goal.currentAmount)} of ₹${String.format(Locale.US, "%.2f", goal.targetAmount)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface

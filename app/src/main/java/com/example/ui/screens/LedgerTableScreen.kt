@@ -43,7 +43,6 @@ fun LedgerTableScreen(
     onAddTransactionClick: () -> Unit,
     onEditTransaction: (TransactionEntity) -> Unit,
     onDeleteTransaction: (TransactionEntity) -> Unit,
-    onResetSampleData: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var sortMenuExpanded by remember { mutableStateOf(false) }
@@ -119,9 +118,7 @@ fun LedgerTableScreen(
                             )
                         }
 
-                        IconButton(onClick = onResetSampleData) {
-                            Icon(imageVector = Icons.Default.Restore, contentDescription = "Reset sample data")
-                        }
+
                     }
                 }
             }
@@ -249,7 +246,7 @@ fun LedgerTableScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Amount: $${String.format(Locale.US, "%.2f", tx.amount)} (${tx.type.name})",
+                        text = "Amount: ₹${String.format(Locale.US, "%.2f", tx.amount)} (${tx.type.name})",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (tx.type == TransactionType.INCOME) Color(0xFF10B981) else MaterialTheme.colorScheme.primary
@@ -355,7 +352,7 @@ fun LedgerCardItem(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${if (isIncome) "+" else "-"}$${String.format(Locale.US, "%.2f", transaction.amount)}",
+                    text = "${if (isIncome) "+" else "-"}₹${String.format(Locale.US, "%.2f", transaction.amount)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (isIncome) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurface

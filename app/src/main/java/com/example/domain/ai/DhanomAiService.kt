@@ -1,42 +1,29 @@
 package com.example.domain.ai
 
-import com.example.BuildConfig
 import com.example.data.model.*
 import com.example.domain.analytics.FinancialAnalyticsEngine
-import com.example.domain.ml.PersonalFinanceMlEngine
 import com.example.domain.nlp.NaturalLanguageFinanceParser
 import com.example.domain.nlp.ParsedFinanceCommand
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 data class DhanomAiResponse(
     val replyText: String,
     val parsedCommand: ParsedFinanceCommand?,
-    val isFromGemini: Boolean,
-    val internetInsightsUsed: Boolean
+    val brain: String // "gemma" | "cloud" | "local"
 )
 
+/**
+ * Dhan-OM's brain is layered for maximum accuracy:
+ *   1. local commands (add/delete/budget/goal/navigation) execute instantly,
+ *   2. a high-accuracy CLOUD LLM answers everything else when configured,
+ *   3. the on-device Gemma 4 E2B (fast) model answers offline,
+ *   4. curated small-talk answers for greetings/meta questions.
+ * The LLM never touches the database directly — it only proposes structured
+ * JSON tool-calls that the app validates and executes.
+ */
 class DhanomAiService {
-
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .build()
-
-    private val moshi = Moshi.Builder()
-        .add(KotlinJsonAdapterFactory())
-        .build()
 
     suspend fun processUserMessage(
         userMessage: String,
@@ -44,17 +31,19 @@ class DhanomAiService {
         currentBudgets: List<BudgetEntity>,
         currentGoals: List<GoalEntity> = emptyList(),
         learnedMemories: List<BrainMemoryEntity> = emptyList(),
-        enableInternetKnowledge: Boolean = false
+        cloudGenerate: (suspend (String, String?) -> String?)? = null,
+        gemmaGenerate: (suspend (String) -> String?)? = null,
+        imageBase64: String? = null,
+        imageMime: String = "image/jpeg",
+        committedPrompt: String = "",
+        chatHistory: List<String> = emptyList(),
+        memoryContext: String = "",
+        gemmaStatus: () -> String = { "Gemma brain not ready yet." }
     ): DhanomAiResponse = withContext(Dispatchers.IO) {
-        val apiKey = try {
-            BuildConfig.GEMINI_API_KEY
-        } catch (e: Exception) {
-            ""
-        }
 
         val summary = FinancialAnalyticsEngine.calculateCashFlowSummary(currentTransactions)
 
-        // Context-aware NLU parsing with live on-device ML
+        // 1) Local command understanding (actions the tracker must perform).
         val localParsed = NaturalLanguageFinanceParser.parseCommandWithContext(
             input = userMessage,
             transactions = currentTransactions,
@@ -63,149 +52,147 @@ class DhanomAiService {
             summary = summary
         )
 
-        // If it's a direct mutating command (add transaction, set budget, add goal), execute it directly
-        if (localParsed is ParsedFinanceCommand.AddTransactionCommand ||
-            localParsed is ParsedFinanceCommand.SetBudgetCommand ||
-            localParsed is ParsedFinanceCommand.AddGoalCommand
-        ) {
-            val responseText = when (localParsed) {
+        val isAction = localParsed is ParsedFinanceCommand.AddTransactionCommand ||
+                localParsed is ParsedFinanceCommand.SetBudgetCommand ||
+                localParsed is ParsedFinanceCommand.AddGoalCommand ||
+                localParsed is ParsedFinanceCommand.DeleteTransactionCommand
+
+        // Complex / multi-intent requests must go to a real brain, not the simple parser.
+        val complex = isComplexRequest(userMessage.lowercase())
+
+        if (!complex && isAction) {
+            val confirmation = when (localParsed) {
                 is ParsedFinanceCommand.AddTransactionCommand -> localParsed.confirmationMessage
                 is ParsedFinanceCommand.SetBudgetCommand -> localParsed.confirmationMessage
                 is ParsedFinanceCommand.AddGoalCommand -> localParsed.confirmationMessage
+                is ParsedFinanceCommand.DeleteTransactionCommand -> localParsed.confirmationMessage
                 else -> ""
             }
-            return@withContext DhanomAiResponse(
-                replyText = responseText,
-                parsedCommand = localParsed,
-                isFromGemini = false,
-                internetInsightsUsed = false
-            )
+            return@withContext DhanomAiResponse(confirmation, localParsed, "local")
         }
 
-        // If Gemini API Key is present and valid, call Gemini 3.5 Flash for conversational reasoning
-        if (apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY" && !apiKey.startsWith("YOUR_")) {
+        if (!complex && localParsed is ParsedFinanceCommand.ShowAnalyticsCommand) {
+            return@withContext DhanomAiResponse(localParsed.responseMessage, localParsed, "local")
+        }
+
+        // 2) Small talk & meta questions get deterministic, helpful answers.
+        handleSmallTalk(userMessage)?.let {
+            return@withContext DhanomAiResponse(it, null, "local")
+        }
+
+        val systemPrompt = buildSystemPrompt(currentTransactions, currentBudgets, currentGoals, summary) +
+                (if (committedPrompt.isNotBlank()) "\n\nSTANDING INSTRUCTIONS (always apply these):\n$committedPrompt" else "") +
+                (if (chatHistory.isNotEmpty()) "\n\nRECENT CONVERSATION (remember this):\n" + chatHistory.takeLast(30).joinToString("\n") else "") +
+                (if (memoryContext.isNotBlank()) "\n\n$memoryContext" else "")
+
+        // 3) Cloud brain first (highest accuracy) when configured.
+        if (cloudGenerate != null) {
             try {
-                val geminiReply = callGeminiApi(
-                    apiKey = apiKey,
-                    prompt = userMessage,
-                    transactions = currentTransactions,
-                    budgets = currentBudgets,
-                    goals = currentGoals,
-                    memories = learnedMemories,
-                    enableInternetKnowledge = enableInternetKnowledge
-                )
-                if (geminiReply.isNotBlank()) {
-                    return@withContext DhanomAiResponse(
-                        replyText = geminiReply,
-                        parsedCommand = localParsed,
-                        isFromGemini = true,
-                        internetInsightsUsed = enableInternetKnowledge
-                    )
+                val reply = cloudGenerate(systemPrompt + "\n\nUSER: " + userMessage, imageBase64)
+                if (!reply.isNullOrBlank()) {
+                    return@withContext DhanomAiResponse(reply.trim(), null, "cloud")
                 }
-            } catch (e: Exception) {
-                // Graceful fallback to offline NLP
-            }
+            } catch (_: Exception) { /* fall back */ }
         }
 
-        // Offline Context-Aware NLU Response
-        val fallbackText = when (localParsed) {
-            is ParsedFinanceCommand.ShowAnalyticsCommand -> localParsed.responseMessage
-            is ParsedFinanceCommand.QueryResponseCommand -> localParsed.responseText
-            else -> "I have analyzed your financial records and noted your input. You can review your interactive Flowchart, Spending Graphs, or Ledger anytime."
+        // 4) On-device Gemma brain (offline).
+        if (gemmaGenerate != null) {
+            try {
+                val reply = gemmaGenerate(systemPrompt + "\n\nUSER: " + userMessage)
+                if (!reply.isNullOrBlank()) {
+                    return@withContext DhanomAiResponse(reply.trim(), null, "gemma")
+                }
+            } catch (_: Exception) { /* fall through */ }
         }
 
+        // 5) Not ready — say exactly what's wrong.
         DhanomAiResponse(
-            replyText = fallbackText,
-            parsedCommand = localParsed,
-            isFromGemini = false,
-            internetInsightsUsed = false
+            replyText = "🧠 ${gemmaStatus()}\n\nInstall the on-device Gemma brain (Profile → AI Brain → Download), or add a cloud brain API key in Profile for the most accurate answers.",
+            parsedCommand = null,
+            brain = "local"
         )
     }
 
-    private fun callGeminiApi(
-        apiKey: String,
-        prompt: String,
+    /** True when the message mixes multiple financial intents or is very long. */
+    private fun isComplexRequest(lower: String): Boolean {
+        val markers = listOf("add", "spent", "spend", "salary", "income", "expense", "goal",
+            "budget", "delete", "remove", "deposit", "save", "invest", "pay", "paid")
+        val hits = markers.count { lower.contains(it) }
+        if (hits >= 2) return true
+        return lower.trim().split(Regex("\\s+")).size > 14
+    }
+
+    private fun buildSystemPrompt(
         transactions: List<TransactionEntity>,
         budgets: List<BudgetEntity>,
         goals: List<GoalEntity>,
-        memories: List<BrainMemoryEntity>,
-        enableInternetKnowledge: Boolean
+        summary: com.example.domain.analytics.CashFlowSummary
     ): String {
-        val summary = FinancialAnalyticsEngine.calculateCashFlowSummary(transactions)
-        val forecast = PersonalFinanceMlEngine.forecastMonthEndCashFlow(transactions)
-        val topCategories = FinancialAnalyticsEngine.calculateCategoryBreakdown(transactions).take(4)
-            .joinToString { "${it.category.displayName}: $${String.format(Locale.US, "%.0f", it.amount)} (${it.percentage.toInt()}%)" }
+        val topCategories = FinancialAnalyticsEngine.calculateCategoryBreakdown(transactions).take(5)
+            .joinToString { "${it.category.displayName}: ₹${String.format(Locale.US, "%.0f", it.amount)}" }
+        val recentTx = transactions.take(6)
+            .joinToString("\n") { "- ${it.title} (${it.category.displayName}): ₹${String.format(Locale.US, "%.0f", it.amount)}" }
+        val goalsText = goals.take(6)
+            .joinToString("\n") { "- ${it.title}: ${String.format(Locale.US, "%.0f", it.currentAmount)} / ${String.format(Locale.US, "%.0f", it.targetAmount)}" }
 
-        val habitsContext = memories.take(4)
-            .joinToString("; ") { "${it.topic}: ${it.description}" }
+        return """
+You are Dhan-OM, a precise personal finance AI. Give accurate, concise answers (2-5 sentences unless detail is requested). Always use ₹ (INR). Understand Hinglish and Indian number words ("20 lacs" = 2,000,000; "62,000" = 62000; "1.5 lakh" = 150000). Never invent numbers — use the user's real data below.
 
-        val systemContext = """
-            You are Dhanom, an elite, empathetic, privacy-first personal finance AI advisor.
-            User Financial Snapshot & ML Intelligence:
-            - Monthly Total Inflow: $${String.format(Locale.US, "%.2f", summary.totalInflow)}
-            - Monthly Outflow: $${String.format(Locale.US, "%.2f", summary.totalOutflow)}
-            - Net Cash Flow: $${String.format(Locale.US, "%.2f", summary.netCashFlow)}
-            - Savings Rate: ${summary.savingsRate.toInt()}%
-            - Financial Health Score: ${summary.healthScore}/100 (${summary.healthGrade})
-            - ML End-of-Month Projected Outflows: $${String.format(Locale.US, "%.2f", forecast.projectedMonthEndExpenses)} (Burn: $${String.format(Locale.US, "%.2f", forecast.dailyBurnRate)}/day)
-            - Top Expense Categories: $topCategories
-            - Learned Habit Brain Memories: $habitsContext
-            ${if (enableInternetKnowledge) "Internet Knowledge Mode: ACTIVE. Provide actionable benchmarks, economic context, tax/interest rate rules, and modern personal finance best practices." else ""}
-            
-            Style instructions:
-            - Give direct, warm, concise, and mathematically sharp advice.
-            - Relate answers directly to the user's specific cash flows, goals, and habits.
-            - Keep responses scannable with bullet points and bold highlights where helpful. Max 3 short paragraphs.
-        """.trimIndent()
+REAL DATA:
+- Inflow ₹${String.format(Locale.US, "%.0f", summary.totalInflow)} | Outflow ₹${String.format(Locale.US, "%.0f", summary.totalOutflow)} | Net ₹${String.format(Locale.US, "%.0f", summary.netCashFlow)}
+- Savings rate ${summary.savingsRate.toInt()}% | Health ${summary.healthScore}/100 (${summary.healthGrade})
+- Top categories: $topCategories
+- Goals: $goalsText
+- Recent:
+$recentTx
 
-        val jsonPayload = JSONObject()
+ACTIONS: when the user explicitly asks to record/change data, after your reply output each action on its own line as single-line JSON:
+{"action":"add_expense","amount":450,"merchant":"Swiggy","category":"dining"}
+{"action":"add_income","amount":62000,"merchant":"Salary","category":"salary"}
+{"action":"add_goal","title":"Save 20 lakh","amount":2000000,"days":365}
+{"action":"set_budget","category":"groceries","limit":8000}
+{"action":"delete_last":true} or {"action":"delete_all":true}
+{"action":"add_goal","title":"Emergency Fund","amount":50000,"days":365}   <- use add_goal for savings/emergency fund/fixed deposit statements (NEVER add_expense for those)
+{"action":"add_task","title":"Pay rent","recurrence":"monthly","day":1,"amount":22000,"expiresYear":0}
+{"action":"complete_task","title":"Pay rent"}
+Categories: housing, groceries, utilities, transportation, healthcare, dining, entertainment, shopping, travel, education, investment, insurance, tax, mutual_fund, gold, crypto, subscriptions, gifts, other. Income: salary, freelance, dividend.
+IMPORTANT RULES:
+- If the user says they HAVE savings / an emergency fund / fixed deposit / "₹X saved", record it as add_goal (a savings goal) — NEVER as a housing/rent expense.
+- If the user refers to something from earlier in this conversation, answer using the RECENT CONVERSATION above.
+- If the user references an amount or detail from a previous message, use that context instead of saying you don't know.
+- If the user asks to be reminded / to remember to do something on a schedule, output an add_task action (recurrence: once/daily/weekly/monthly/yearly; day = day-of-month for monthly; expiresYear = 0 for never, or the year it should stop).
+- If the user uploads a bill/receipt image or document text, read it, estimate or total the costs, and log the items as add_expense actions where amounts are clear.
+- If the user gives a table of data (Excel/CSV), analyze it: summarize columns, totals, averages, top items and trends.
+- When proposing a plan/strategy, self-verify it against the REAL DATA above: never advise saving/investing more per month than the user's net cash flow can support.
+- NEVER reveal your reasoning or thought process. Do NOT write things like "The user wants me to", "I need to", "Let me", "I will", "First", "Next". Reply ONLY with the final answer (plus the JSON actions when required).
 
-        // System Instruction
-        val systemInstructionObj = JSONObject()
-        val sysParts = JSONArray()
-        sysParts.put(JSONObject().put("text", systemContext))
-        systemInstructionObj.put("parts", sysParts)
-        jsonPayload.put("systemInstruction", systemInstructionObj)
+For pure questions output NO JSON.
+""".trimIndent()
+    }
 
-        // Contents
-        val contentsArray = JSONArray()
-        val contentObj = JSONObject()
-        val partsArray = JSONArray()
-        partsArray.put(JSONObject().put("text", prompt))
-        contentObj.put("parts", partsArray)
-        contentsArray.put(contentObj)
-        jsonPayload.put("contents", contentsArray)
-
-        // Generation Config
-        val genConfig = JSONObject()
-        genConfig.put("temperature", 0.7)
-        genConfig.put("maxOutputTokens", 800)
-        jsonPayload.put("generationConfig", genConfig)
-
-        val requestBody = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey"
-
-        val request = Request.Builder()
-            .url(url)
-            .post(requestBody)
-            .build()
-
-        val response = okHttpClient.newCall(request).execute()
-        val bodyStr = response.body?.string() ?: ""
-
-        if (!response.isSuccessful) {
-            return ""
+    /** Curated answers for greetings, small talk, and meta questions. */
+    private fun handleSmallTalk(message: String): String? {
+        val m = message.lowercase().trim()
+        if (m in listOf("hi", "hello", "hey", "hii", "namaste", "namaskar", "hola") ||
+            m.startsWith("hi ") || m.startsWith("hello ") || m.startsWith("hey ") ||
+            m == "good morning" || m == "good afternoon" || m == "good evening") {
+            return "Namaste 🙏 I'm Dhan-OM, your personal finance AI.\n\nYou can tell me things like:\n• \"Spent ₹450 on Swiggy\"\n• \"Add income 50000 salary\"\n• \"Delete my last transaction\"\n• \"How much did I spend on dining this month?\"\n\nHow can I help you today?"
         }
-
-        val jsonResponse = JSONObject(bodyStr)
-        val candidates = jsonResponse.optJSONArray("candidates") ?: return ""
-        if (candidates.length() == 0) return ""
-
-        val firstCand = candidates.getJSONObject(0)
-        val content = firstCand.optJSONObject("content") ?: return ""
-        val parts = content.optJSONArray("parts") ?: return ""
-        if (parts.length() == 0) return ""
-
-        return parts.getJSONObject(0).optString("text", "")
+        if (m.contains("who are you") || m.contains("what can you do") || m.contains("help")) {
+            return "I'm Dhan-OM, an offline-first personal finance AI. I can log & delete transactions by talking, track budgets/goals/loans, analyze spending, manage investments, and export CSV/PDF/backup. Just talk to me in plain English (or Hinglish)."
+        }
+        if (m.contains("install") || m.contains("download") || m.contains("gemma") || m.contains("model") || m.contains("brain") || m.contains("setup")) {
+            return "🧠 The brain runs on your phone. Install the on-device Gemma model in Profile → AI Brain → Download (~3.7 GB, resumes if it drops). For the most accurate answers, also add a cloud brain API key (OpenAI/Groq/etc.) in Profile → Cloud Brain."
+        }
+        if (m.contains("how are you") || m.contains("kaise ho") || m.contains("kya haal")) {
+            return "I'm doing great, thank you! 😊 What would you like to do with your money today?"
+        }
+        if (m.contains("track") && (m.contains("sms") || m.contains("message") || m.contains("loan") || m.contains("emi") || m.contains("monthly"))) {
+            return "📩 About automatic SMS tracking: it is disabled in this build to keep the app installable on Realme/ColorOS phones (they block apps that request SMS access).\n\nInstead, do one of these and I'll log it automatically:\n1. Paste the bank SMS text into chat (e.g. \"Rs.2500 debited for loan EMI\"), or\n2. Attach a bank statement PDF/image — I read and log each transaction.\n\nFor a loan: say 'add loan Home Loan principal 1000000 outstanding 800000 emi 25000' and I'll record it, then you can paste each EMI debit SMS to track it."
+        }
+        if (m.contains("thank") || m.contains("thanks") || m.contains("shukriya") || m.contains("dhanyavad")) {
+            return "You're welcome! 🙏 I'm always here for your money questions."
+        }
+        return null
     }
 }

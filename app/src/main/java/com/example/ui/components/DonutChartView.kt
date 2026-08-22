@@ -40,8 +40,8 @@ fun CategoryDonutChartView(
             .fillMaxWidth()
             .testTag("category_donut_chart_card"),
         shape = RoundedCornerShape(28.dp),
-        color = Color.White,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BentoBorder)
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(
             modifier = Modifier
@@ -52,12 +52,12 @@ fun CategoryDonutChartView(
                 text = "Expense Distribution",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = BentoDeepPurple
+                color = MaterialTheme.colorScheme.primary
             )
             Text(
                 text = "Tap a slice or category to isolate spending metrics",
                 style = MaterialTheme.typography.bodySmall,
-                color = BentoSecondaryText
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -118,7 +118,7 @@ fun CategoryDonutChartView(
                             val displayAmount = selectedCategory?.amount ?: totalExpense
                             val displayLabel = selectedCategory?.category?.displayName ?: "Total Spent"
                             Text(
-                                text = "$${String.format(Locale.US, "%.0f", displayAmount)}",
+                                text = "₹${String.format(Locale.US, "%.0f", displayAmount)}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface

@@ -34,7 +34,7 @@ fun FlowAnalyticsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(BentoBackgroundLight)
+            .background(MaterialTheme.colorScheme.background)
             .testTag("flow_analytics_screen"),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -61,20 +61,20 @@ fun FlowAnalyticsScreen(
                     .fillMaxWidth()
                     .testTag("category_table_card"),
                 shape = RoundedCornerShape(28.dp),
-                color = Color.White,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BentoBorder)
+                color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(
                         text = "Category Analytics Table",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = BentoDeepPurple
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "Complete distribution ranking across active spending",
                         style = MaterialTheme.typography.bodySmall,
-                        color = BentoSecondaryText
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -84,7 +84,7 @@ fun FlowAnalyticsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(BentoSurfaceLight)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -92,28 +92,28 @@ fun FlowAnalyticsScreen(
                             text = "Category",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = BentoDeepPurple,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1.5f)
                         )
                         Text(
                             text = "Count",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = BentoDeepPurple,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(0.7f)
                         )
                         Text(
                             text = "Total Spent",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = BentoDeepPurple,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1.2f)
                         )
                         Text(
                             text = "Share",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = BentoDeepPurple,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(0.8f)
                         )
                     }
@@ -142,21 +142,21 @@ fun FlowAnalyticsScreen(
                                     text = exp.category.displayName,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = BentoOnBackgroundLight,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1
                                 )
                             }
                             Text(
                                 text = "${exp.count} tx",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = BentoSecondaryText,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(0.7f)
                             )
                             Text(
-                                text = "$${String.format(Locale.US, "%.2f", exp.amount)}",
+                                text = "₹${String.format(Locale.US, "%.2f", exp.amount)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
-                                color = BentoOnBackgroundLight,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1.2f)
                             )
                             Text(
@@ -167,7 +167,7 @@ fun FlowAnalyticsScreen(
                                 modifier = Modifier.weight(0.8f)
                             )
                         }
-                        HorizontalDivider(color = BentoBorder.copy(alpha = 0.5f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                     }
                 }
             }

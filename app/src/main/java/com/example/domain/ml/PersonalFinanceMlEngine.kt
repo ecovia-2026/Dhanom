@@ -172,7 +172,57 @@ object PersonalFinanceMlEngine {
         "direct dep" to TransactionCategory.SALARY,
         "freelance" to TransactionCategory.FREELANCE,
         "upwork" to TransactionCategory.FREELANCE,
-        "fiverr" to TransactionCategory.FREELANCE
+        "fiverr" to TransactionCategory.FREELANCE,
+
+        // Indian merchants, apps & services
+        "swiggy" to TransactionCategory.DINING,
+        "zomato" to TransactionCategory.DINING,
+        "dunzo" to TransactionCategory.DINING,
+        "dominos" to TransactionCategory.DINING,
+        "bigbasket" to TransactionCategory.GROCERIES,
+        "dmart" to TransactionCategory.GROCERIES,
+        "blinkit" to TransactionCategory.GROCERIES,
+        "zepto" to TransactionCategory.GROCERIES,
+        "jiomart" to TransactionCategory.GROCERIES,
+        "food" to TransactionCategory.GROCERIES,
+        "rashan" to TransactionCategory.GROCERIES,
+        "khana" to TransactionCategory.DINING,
+        "khaana" to TransactionCategory.DINING,
+        "petrol" to TransactionCategory.TRANSPORTATION,
+        "diesel" to TransactionCategory.TRANSPORTATION,
+        "electricity" to TransactionCategory.UTILITIES,
+        "flipkart" to TransactionCategory.SHOPPING,
+        "myntra" to TransactionCategory.SHOPPING,
+        "ajio" to TransactionCategory.SHOPPING,
+        "meesho" to TransactionCategory.SHOPPING,
+        "ola cabs" to TransactionCategory.TRANSPORTATION,
+        "rapido" to TransactionCategory.TRANSPORTATION,
+        "irctc" to TransactionCategory.TRAVEL,
+        "indigo" to TransactionCategory.TRAVEL,
+        "air india" to TransactionCategory.TRAVEL,
+        "makemytrip" to TransactionCategory.TRAVEL,
+        "goibibo" to TransactionCategory.TRAVEL,
+        "jio" to TransactionCategory.UTILITIES,
+        "airtel" to TransactionCategory.UTILITIES,
+        "bsnl" to TransactionCategory.UTILITIES,
+        "tatasky" to TransactionCategory.ENTERTAINMENT,
+        "hotstar" to TransactionCategory.ENTERTAINMENT,
+        "sonyliv" to TransactionCategory.ENTERTAINMENT,
+        "paytm" to TransactionCategory.OTHER,
+        "phonepe" to TransactionCategory.OTHER,
+        "google pay" to TransactionCategory.OTHER,
+        "lic" to TransactionCategory.INSURANCE,
+        "policybazaar" to TransactionCategory.INSURANCE,
+        "zerodha" to TransactionCategory.INVESTMENT,
+        "groww" to TransactionCategory.INVESTMENT,
+        "upstox" to TransactionCategory.INVESTMENT,
+        "nifty" to TransactionCategory.INVESTMENT,
+        "sensex" to TransactionCategory.INVESTMENT,
+        "mutual fund" to TransactionCategory.INVESTMENT,
+        "ppf" to TransactionCategory.SAVINGS_TRANSFER,
+        "epf" to TransactionCategory.SAVINGS_TRANSFER,
+        "gold bond" to TransactionCategory.GOLD,
+        "sovereign gold" to TransactionCategory.GOLD
     )
 
     /**
@@ -292,9 +342,9 @@ object PersonalFinanceMlEngine {
         val isHighVelocity = (dailyBurnRate * 30.0) > (projectedMonthEndInflow * 0.85) && projectedMonthEndInflow > 0
 
         val summary = when {
-            projectedNet < 0 -> "⚠️ Alert: Current spending burn ($${String.format(Locale.US, "%.0f", dailyBurnRate)}/day) projects a deficit of $${String.format(Locale.US, "%.0f", abs(projectedNet))} by month-end."
-            projectedSavingsRate >= 25.0 -> "🚀 Excellent trajectory: You are projected to save $${String.format(Locale.US, "%.0f", projectedNet)} (${projectedSavingsRate.toInt()}% savings rate) this month."
-            else -> "📊 On track: Projected month-end net savings of $${String.format(Locale.US, "%.0f", projectedNet)} (${projectedSavingsRate.toInt()}% savings rate)."
+            projectedNet < 0 -> "⚠️ Alert: Current spending burn (₹${String.format(Locale.US, "%.0f", dailyBurnRate)}/day) projects a deficit of ₹${String.format(Locale.US, "%.0f", abs(projectedNet))} by month-end."
+            projectedSavingsRate >= 25.0 -> "🚀 Excellent trajectory: You are projected to save ₹${String.format(Locale.US, "%.0f", projectedNet)} (${projectedSavingsRate.toInt()}% savings rate) this month."
+            else -> "📊 On track: Projected month-end net savings of ₹${String.format(Locale.US, "%.0f", projectedNet)} (${projectedSavingsRate.toInt()}% savings rate)."
         }
 
         return CashFlowForecast(
@@ -342,7 +392,7 @@ object PersonalFinanceMlEngine {
                             categoryAverage = mean,
                             zScore = zScore,
                             severity = severity,
-                            explanation = "${tx.title} ($${String.format(Locale.US, "%.2f", tx.amount)}) is ${String.format(Locale.US, "%.1f", zScore)}σ above your typical ${cat.displayName} average ($${String.format(Locale.US, "%.2f", mean)})."
+                            explanation = "${tx.title} (₹${String.format(Locale.US, "%.2f", tx.amount)}) is ${String.format(Locale.US, "%.1f", zScore)}σ above your typical ${cat.displayName} average (₹${String.format(Locale.US, "%.2f", mean)})."
                         )
                     )
                 }
@@ -428,9 +478,9 @@ object PersonalFinanceMlEngine {
             val rec = if (remaining <= 0) {
                 "🎉 Goal achieved! Ready to allocate funds toward your next milestone."
             } else if (isAchievable) {
-                "On track! Contributing $${String.format(Locale.US, "%.2f", allocatedDaily)}/day reaches this goal by ${dateFormat.format(targetCal.time)}."
+                "On track! Contributing ₹${String.format(Locale.US, "%.2f", allocatedDaily)}/day reaches this goal by ${dateFormat.format(targetCal.time)}."
             } else {
-                "Needs acceleration: Divert $${String.format(Locale.US, "%.0f", (remaining / max(1, daysRemainingInGoal)) * 30)}/mo to reach target on schedule."
+                "Needs acceleration: Divert ₹${String.format(Locale.US, "%.0f", (remaining / max(1, daysRemainingInGoal)) * 30)}/mo to reach target on schedule."
             }
 
             GoalProjection(
@@ -499,7 +549,7 @@ object PersonalFinanceMlEngine {
                     id = "recurring_subs",
                     type = "SAVING_OPPORTUNITY",
                     title = "${recurring.size} Active Subscriptions Detected",
-                    message = "You have ${recurring.size} recurring subscriptions totaling $${String.format(Locale.US, "%,.0f", totalAnnual)}/year (${recurring.joinToString(", ") { it.merchantOrTitle }}).",
+                    message = "You have ${recurring.size} recurring subscriptions totaling ₹${String.format(Locale.US, "%,.0f", totalAnnual)}/year (${recurring.joinToString(", ") { it.merchantOrTitle }}).",
                     impactAmount = totalAnnual / 12.0,
                     confidence = 0.94,
                     actionText = "Manage Bills"
